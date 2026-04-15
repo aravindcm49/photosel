@@ -1,4 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Agent internals
 .agents
 .github
 .sandcastle
-node_modules/
