@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { FolderCard } from '@/components/FolderCard';
 import { FolderOpen } from 'lucide-react';
-import { getAllProjects, deleteProject, saveProject } from '@/lib/db';
+import { getAllProjects, deleteProject, saveProject, getProject } from '@/lib/db';
 import {
   getDirectoryHandle,
   getImageFilesFromDirectory,
@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 
 interface HomeScreenProps {
   onOpenProject: (project: Project, dirHandle: FileSystemDirectoryHandle) => void;
-  onResumeProject: (project: Project) => void;
+  onResumeProject: (project: Project, dirHandle: FileSystemDirectoryHandle) => void;
 }
 
 export function HomeScreen({ onOpenProject, onResumeProject }: HomeScreenProps) {
@@ -72,7 +72,6 @@ export function HomeScreen({ onOpenProject, onResumeProject }: HomeScreenProps) 
         photos,
       };
 
-      // Store aspect ratio as a convention - will be used by PhotoViewer
       (project as Project & { aspectRatio: number }).aspectRatio = aspectRatio;
 
       await saveProject(project);
@@ -99,8 +98,29 @@ export function HomeScreen({ onOpenProject, onResumeProject }: HomeScreenProps) 
   );
 
   const handleResume = useCallback(
-    (project: Project) => {
-      onResumeProject(project);
+    async (project: Project) => {
+      try {
+        const dirHandle = await getDirectoryHandle();
+        if (!dirHandle) {
+          toast.error('Permission required to access folder. Please select the folder again.');
+          return;
+        }
+
+        // Verify the folder name matches
+        if (dirHandle.name !== project.folderName) {
+          // Update the project with the new folder handle anyway - user may have renamed
+        }
+
+        // Reload project from IndexedDB to get latest state
+        const latestProject = await getProject(project.folderName);
+        if (latestProject) {
+          onResumeProject(latestProject, dirHandle);
+        } else {
+          toast.error('Project not found in database.');
+        }
+      } catch {
+        toast.error('Failed to resume project. Permission may have been denied.');
+      }
     },
     [onResumeProject]
   );

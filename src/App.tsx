@@ -19,9 +19,9 @@ function App() {
     setScreen('review');
   }, []);
 
-  const handleResumeProject = useCallback((project: Project) => {
+  const handleResumeProject = useCallback((project: Project, handle: FileSystemDirectoryHandle) => {
     setCurrentProject(project);
-    setDirHandle(null);
+    setDirHandle(handle);
     setScreen('review');
   }, []);
 

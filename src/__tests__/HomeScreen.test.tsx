@@ -8,6 +8,7 @@ vi.mock('../lib/db', () => ({
   getAllProjects: vi.fn(),
   deleteProject: vi.fn(),
   saveProject: vi.fn(),
+  getProject: vi.fn(),
 }));
 
 // Mock file-system module
@@ -40,7 +41,7 @@ vi.mock('sonner', () => ({
   },
 }));
 
-import { getAllProjects, deleteProject } from '../lib/db';
+import { getAllProjects, deleteProject, getProject } from '../lib/db';
 import { getDirectoryHandle, getImageFilesFromDirectory, analyzeAspectRatio } from '../lib/file-system';
 import { countReviewed } from '../lib/image-utils';
 import { toast } from 'sonner';
@@ -49,6 +50,7 @@ const mockToastError = vi.mocked(toast.error);
 
 const mockGetAllProjects = vi.mocked(getAllProjects);
 const mockDeleteProject = vi.mocked(deleteProject);
+const mockGetProject = vi.mocked(getProject);
 const mockGetDirectoryHandle = vi.mocked(getDirectoryHandle);
 const mockGetImageFilesFromDirectory = vi.mocked(getImageFilesFromDirectory);
 const mockAnalyzeAspectRatio = vi.mocked(analyzeAspectRatio);
@@ -207,6 +209,8 @@ describe('HomeScreen', () => {
     };
     mockCountReviewed.mockReturnValue(5);
     mockGetAllProjects.mockResolvedValue([project]);
+    mockGetProject.mockResolvedValue(project);
+    mockGetDirectoryHandle.mockResolvedValue({ name: 'Wedding2023' } as FileSystemDirectoryHandle);
 
     render(
       <HomeScreen
@@ -222,10 +226,11 @@ describe('HomeScreen', () => {
     const resumeButton = screen.getByLabelText('Resume Wedding2023');
     await user.click(resumeButton);
 
-    expect(mockOnResumeProject).toHaveBeenCalledWith(
-      expect.objectContaining({
-        folderName: 'Wedding2023',
-      })
-    );
+    await waitFor(() => {
+      expect(mockOnResumeProject).toHaveBeenCalledWith(
+        expect.objectContaining({ folderName: 'Wedding2023' }),
+        expect.anything()
+      );
+    });
   });
 });
