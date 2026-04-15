@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { StatusBadge } from '../components/StatusBadge';
 import { ProgressIndicator } from '../components/ProgressIndicator';
-import { ProjectProvider, useProject } from '../context/ProjectContext';
+import { ProjectProvider } from '../context/ProjectContext';
 import type { Project } from '../types';
 
 vi.mock('../lib/db', () => ({
