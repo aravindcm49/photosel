@@ -1,14 +1,36 @@
 import { Button } from '@/components/ui/button';
 import { useProject } from '@/context/ProjectContext';
 import { PeopleTagInput } from '@/components/PeopleTagInput';
+import type { PeopleTagInputRef } from '@/components/PeopleTagInput';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { forwardRef, useImperativeHandle, useRef } from 'react';
 
-export function ActionBar() {
+export interface ActionBarRef {
+  hasUncommittedTags: () => boolean;
+  clearUncommitted: () => void;
+  focusTagInput: () => void;
+}
+
+interface ActionBarProps {
+  onTagInputFocusChange?: (focused: boolean) => void;
+}
+
+export const ActionBar = forwardRef<ActionBarRef, ActionBarProps>(function ActionBar(
+  { onTagInputFocusChange },
+  ref
+) {
   const { markPhoto, goToNext } = useProject();
+  const peopleTagInputRef = useRef<PeopleTagInputRef>(null);
+
+  useImperativeHandle(ref, () => ({
+    hasUncommittedTags: () => peopleTagInputRef.current?.hasUncommitted() ?? false,
+    clearUncommitted: () => peopleTagInputRef.current?.clear(),
+    focusTagInput: () => peopleTagInputRef.current?.focus(),
+  }));
 
   const handleSkip = () => {
     markPhoto('skipped');
@@ -37,7 +59,7 @@ export function ActionBar() {
       </Tooltip>
 
       <div className="flex-1 max-w-md">
-        <PeopleTagInput />
+        <PeopleTagInput ref={peopleTagInputRef} onFocusChange={onTagInputFocusChange} />
       </div>
 
       <Tooltip>
@@ -54,4 +76,4 @@ export function ActionBar() {
       </Tooltip>
     </div>
   );
-}
+});

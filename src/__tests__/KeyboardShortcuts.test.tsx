@@ -43,7 +43,7 @@ describe('useKeyboardShortcuts', () => {
   it('navigates to next photo on ArrowRight', () => {
     const { result } = renderHook(
       () => {
-        useKeyboardShortcuts(false);
+        useKeyboardShortcuts({ isInputFocused: false });
         return useProject();
       },
       { wrapper }
@@ -59,7 +59,7 @@ describe('useKeyboardShortcuts', () => {
   it('navigates to previous photo on ArrowLeft', () => {
     const { result } = renderHook(
       () => {
-        useKeyboardShortcuts(false);
+        useKeyboardShortcuts({ isInputFocused: false });
         return useProject();
       },
       { wrapper }
@@ -80,7 +80,7 @@ describe('useKeyboardShortcuts', () => {
   it('marks photo as skipped on S key and advances', () => {
     const { result } = renderHook(
       () => {
-        useKeyboardShortcuts(false);
+        useKeyboardShortcuts({ isInputFocused: false });
         return useProject();
       },
       { wrapper }
@@ -99,7 +99,7 @@ describe('useKeyboardShortcuts', () => {
   it('marks photo as selected on A key and advances', () => {
     const { result } = renderHook(
       () => {
-        useKeyboardShortcuts(false);
+        useKeyboardShortcuts({ isInputFocused: false });
         return useProject();
       },
       { wrapper }
@@ -118,7 +118,7 @@ describe('useKeyboardShortcuts', () => {
   it('rotates photo on R key', () => {
     const { result } = renderHook(
       () => {
-        useKeyboardShortcuts(false);
+        useKeyboardShortcuts({ isInputFocused: false });
         return useProject();
       },
       { wrapper }
@@ -131,19 +131,21 @@ describe('useKeyboardShortcuts', () => {
     expect(result.current.currentPhoto?.rotation).toBe(90);
   });
 
-  it('does not process shortcuts when input is focused', () => {
+  it('does not process non-navigation shortcuts when input is focused', () => {
     const { result } = renderHook(
       () => {
-        useKeyboardShortcuts(true);
+        useKeyboardShortcuts({ isInputFocused: true });
         return useProject();
       },
       { wrapper }
     );
 
     act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }));
     });
 
+    // Should not have advanced or marked photo
     expect(result.current.currentIndex).toBe(0);
+    expect(result.current.project.photos['a.jpg'].status).toBeNull();
   });
 });

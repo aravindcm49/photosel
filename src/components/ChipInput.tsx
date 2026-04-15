@@ -1,4 +1,10 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
+
+export interface ChipInputRef {
+  hasUncommitted: () => boolean;
+  clear: () => void;
+  focus: () => void;
+}
 
 interface ChipInputProps {
   onChipsChange: (chips: string[]) => void;
@@ -6,7 +12,10 @@ interface ChipInputProps {
   onFocusChange?: (focused: boolean) => void;
 }
 
-export function ChipInput({ onChipsChange, globalPeople, onFocusChange }: ChipInputProps) {
+export const ChipInput = forwardRef<ChipInputRef, ChipInputProps>(function ChipInput(
+  { onChipsChange, globalPeople, onFocusChange },
+  ref
+) {
   const [chips, setChips] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -14,6 +23,27 @@ export function ChipInput({ onChipsChange, globalPeople, onFocusChange }: ChipIn
   const [selectedSuggestion, setSelectedSuggestion] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Track latest values for imperative handle
+  const chipsRef = useRef(chips);
+  chipsRef.current = chips;
+  const inputValueRef = useRef(inputValue);
+  inputValueRef.current = inputValue;
+
+  useImperativeHandle(ref, () => ({
+    hasUncommitted: () => inputValueRef.current.trim() !== '' || chipsRef.current.length > 0,
+    clear: () => {
+      setChips([]);
+      setInputValue('');
+      chipsRef.current = [];
+      inputValueRef.current = '';
+      setShowSuggestions(false);
+      setSelectedSuggestion(-1);
+    },
+    focus: () => {
+      inputRef.current?.focus();
+    },
+  }));
 
   useEffect(() => {
     onChipsChange(chips);
@@ -176,7 +206,7 @@ export function ChipInput({ onChipsChange, globalPeople, onFocusChange }: ChipIn
       )}
     </div>
   );
-}
+});
 
 // Export a focus helper for external use
 export function focusChipInput() {

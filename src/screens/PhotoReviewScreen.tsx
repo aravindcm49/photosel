@@ -1,16 +1,19 @@
 import { useProject, ProjectProvider } from '@/context/ProjectContext';
 import { PhotoViewer } from '@/components/PhotoViewer';
-import { ActionBar } from '@/components/ActionBar';
+import { ActionBar, type ActionBarRef } from '@/components/ActionBar';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ProgressIndicator } from '@/components/ProgressIndicator';
 import { RotateButton } from '@/components/RotateButton';
 import { NavigationBar } from '@/components/NavigationBar';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { getImageFilesFromDirectory } from '@/lib/file-system';
 import type { Project } from '@/types';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
+
+type PendingNavigation = 'next' | 'previous' | null;
 
 interface PhotoReviewScreenProps {
   project: Project;
@@ -73,14 +76,55 @@ function PhotoReviewContent({
   onBack: () => void;
   onComplete: (project: Project) => void;
 }) {
-  const { project, currentIndex, totalPhotos } = useProject();
+  const { project, currentIndex, totalPhotos, goToNext, goToPrevious } = useProject();
   const currentFileHandle = fileHandles[currentIndex] ?? null;
   const photoNames = Object.keys(project.photos).sort();
   const currentPhotoName = photoNames[currentIndex] ?? '';
   const currentPhoto = project.photos[currentPhotoName];
 
-  // Enable keyboard shortcuts (input not focused initially)
-  useKeyboardShortcuts(false);
+  const actionBarRef = useRef<ActionBarRef>(null);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<PendingNavigation>(null);
+
+  const checkAndNavigate = useCallback((direction: 'next' | 'previous') => {
+    const hasUncommitted = actionBarRef.current?.hasUncommittedTags() ?? false;
+    if (hasUncommitted) {
+      setPendingNavigation(direction);
+      setShowConfirmDialog(true);
+    } else {
+      if (direction === 'next') {
+        goToNext();
+      } else {
+        goToPrevious();
+      }
+    }
+  }, [goToNext, goToPrevious]);
+
+  const handleConfirmDiscard = useCallback(() => {
+    actionBarRef.current?.clearUncommitted();
+    setShowConfirmDialog(false);
+    if (pendingNavigation === 'next') {
+      goToNext();
+    } else if (pendingNavigation === 'previous') {
+      goToPrevious();
+    }
+    setPendingNavigation(null);
+  }, [pendingNavigation, goToNext, goToPrevious]);
+
+  const handleCancelDiscard = useCallback(() => {
+    setShowConfirmDialog(false);
+    setPendingNavigation(null);
+    // Re-focus the tag input
+    actionBarRef.current?.focusTagInput();
+  }, []);
+
+  // Enable keyboard shortcuts
+  useKeyboardShortcuts({
+    isInputFocused,
+    onNavigateNext: isInputFocused ? () => checkAndNavigate('next') : undefined,
+    onNavigatePrevious: isInputFocused ? () => checkAndNavigate('previous') : undefined,
+  });
 
   useEffect(() => {
     if (project.reviewedCount === totalPhotos && totalPhotos > 0) {
@@ -123,10 +167,22 @@ function PhotoReviewContent({
       </div>
 
       {/* Navigation */}
-      <NavigationBar />
+      <NavigationBar
+        onPrevious={() => checkAndNavigate('previous')}
+        onNext={() => checkAndNavigate('next')}
+      />
 
       {/* Action bar */}
-      <ActionBar />
+      <ActionBar ref={actionBarRef} onTagInputFocusChange={setIsInputFocused} />
+
+      {/* Confirmation dialog */}
+      {showConfirmDialog && (
+        <ConfirmDialog
+          message="You have uncommitted tags. Discard?"
+          onConfirm={handleConfirmDiscard}
+          onCancel={handleCancelDiscard}
+        />
+      )}
     </div>
   );
 }

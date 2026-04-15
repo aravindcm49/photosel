@@ -7,7 +7,12 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
-export function NavigationBar() {
+interface NavigationBarProps {
+  onPrevious?: () => void;
+  onNext?: () => void;
+}
+
+export function NavigationBar({ onPrevious, onNext }: NavigationBarProps) {
   const { currentIndex, totalPhotos, goToNext, goToPrevious } = useProject();
 
   const isFirst = currentIndex === 0;
@@ -20,7 +25,7 @@ export function NavigationBar() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={goToPrevious}
+            onClick={onPrevious ?? goToPrevious}
             disabled={isFirst}
             aria-label="Previous photo"
           >
@@ -39,7 +44,7 @@ export function NavigationBar() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={goToNext}
+            onClick={onNext ?? goToNext}
             disabled={isLast}
             aria-label="Next photo"
           >
