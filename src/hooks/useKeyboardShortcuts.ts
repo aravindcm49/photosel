@@ -1,13 +1,18 @@
 import { useEffect } from 'react';
 import { useProject } from '@/context/ProjectContext';
 
-export function useKeyboardShortcuts(isInputFocused: boolean) {
+export function useKeyboardShortcuts(isInputFocused: boolean, onTagFocus?: () => void) {
   const { goToNext, goToPrevious, markPhoto, rotatePhoto } = useProject();
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      // Skip shortcuts when input is focused
-      if (isInputFocused) return;
+      // Skip shortcuts when input is focused (except Escape)
+      if (isInputFocused) {
+        if (e.key === 'Escape') {
+          (document.activeElement as HTMLElement)?.blur();
+        }
+        return;
+      }
 
       switch (e.key) {
         case 'ArrowLeft':
@@ -32,10 +37,15 @@ export function useKeyboardShortcuts(isInputFocused: boolean) {
         case 'R':
           rotatePhoto();
           break;
+        case 't':
+        case 'T':
+          e.preventDefault();
+          onTagFocus?.();
+          break;
       }
     }
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isInputFocused, goToNext, goToPrevious, markPhoto, rotatePhoto]);
+  }, [isInputFocused, goToNext, goToPrevious, markPhoto, rotatePhoto, onTagFocus]);
 }

@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { useProject } from '@/context/ProjectContext';
+import { PeopleTagInput } from '@/components/PeopleTagInput';
 
 export function ActionBar() {
   const { markPhoto, goToNext } = useProject();
@@ -15,7 +16,7 @@ export function ActionBar() {
   };
 
   return (
-    <div className="flex items-center justify-center gap-4 p-4">
+    <div className="flex items-center justify-center gap-4 border-t bg-background p-4">
       <Button
         variant="outline"
         size="lg"
@@ -24,6 +25,9 @@ export function ActionBar() {
       >
         Skip
       </Button>
+      <div className="flex-1 max-w-md">
+        <PeopleTagInput />
+      </div>
       <Button
         size="lg"
         onClick={handleAdd}
