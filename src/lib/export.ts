@@ -16,6 +16,21 @@ export function generateSkippedContent(project: Project): string {
     .join('\n');
 }
 
+export function generateSelectedWithTagsContent(project: Project): string {
+  const selected = Object.values(project.photos)
+    .filter((p) => p.status === 'selected')
+    .sort((a, b) => a.filename.localeCompare(b.filename));
+
+  return selected
+    .map((p) => {
+      if (p.people.length > 0) {
+        return `${p.filename}: ${p.people.join(', ')}`;
+      }
+      return p.filename;
+    })
+    .join('\n');
+}
+
 export function downloadFile(content: string, filename: string): void {
   const blob = new Blob([content], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);

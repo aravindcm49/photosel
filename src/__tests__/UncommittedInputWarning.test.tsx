@@ -42,7 +42,7 @@ describe('Uncommitted Input Warning', () => {
       expect(ref.current?.hasUncommitted()).toBe(true);
     });
 
-    it('exposes hasUncommitted as true when there are uncommitted chips', async () => {
+    it('exposes hasUncommitted as false when chips exist but no text', async () => {
       const user = userEvent.setup();
       const ref = { current: null as ChipInputRef | null };
       render(
@@ -55,11 +55,11 @@ describe('Uncommitted Input Warning', () => {
       const input = screen.getByPlaceholderText('Type names (comma-separated)...');
       await user.type(input, 'John{Enter}');
 
-      // Chip exists but input is empty - still uncommitted from project perspective
-      expect(ref.current?.hasUncommitted()).toBe(true);
+      // Chip exists but no uncommitted text - chips are committed
+      expect(ref.current?.hasUncommitted()).toBe(false);
     });
 
-    it('clear() resets input and chips', async () => {
+    it('clear() resets input but keeps chips from initialChips', async () => {
       const user = userEvent.setup();
       const ref = { current: null as ChipInputRef | null };
       render(
@@ -67,10 +67,10 @@ describe('Uncommitted Input Warning', () => {
           ref={ref}
           onChipsChange={onChipsChange}
           globalPeople={globalPeople}
+          initialChips={['John']}
         />
       );
-      const input = screen.getByPlaceholderText('Type names (comma-separated)...');
-      await user.type(input, 'John{Enter}');
+      const input = screen.getByRole('textbox');
       await user.type(input, 'Jane');
 
       expect(ref.current?.hasUncommitted()).toBe(true);
@@ -80,7 +80,8 @@ describe('Uncommitted Input Warning', () => {
       });
 
       expect(ref.current?.hasUncommitted()).toBe(false);
-      expect(screen.queryByText('John')).not.toBeInTheDocument();
+      // Initial chips remain since clear only resets input text
+      expect(screen.queryByText('John')).toBeInTheDocument();
     });
 
     it('focus() focuses the input element', async () => {
@@ -169,7 +170,7 @@ describe('Uncommitted Input Warning', () => {
       expect(onConfirm).not.toHaveBeenCalled();
     });
 
-    it('triggers confirmation with only chips and no input text', async () => {
+    it('does not trigger confirmation when navigating with only chips', async () => {
       const user = userEvent.setup();
       const onConfirm = vi.fn();
 
@@ -199,7 +200,8 @@ describe('Uncommitted Input Warning', () => {
 
       await user.click(screen.getByTestId('nav-next'));
 
-      expect(onConfirm).toHaveBeenCalled();
+      // Chips are committed, no uncommitted text
+      expect(onConfirm).not.toHaveBeenCalled();
     });
   });
 

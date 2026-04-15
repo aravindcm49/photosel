@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
 import { ChipInput, type ChipInputRef } from '@/components/ChipInput';
-import { PeopleBadges } from '@/components/PeopleBadges';
 import { useProject } from '@/context/ProjectContext';
 import { getAllPeople, addGlobalPerson } from '@/lib/db';
 
@@ -36,7 +35,7 @@ export const PeopleTagInput = forwardRef<PeopleTagInputRef, PeopleTagInputProps>
     loadPeople();
   }, []);
 
-  // Sync local chips with committed people when navigating
+  // Sync local chips with committed people when photo changes
   useEffect(() => {
     if (!isFocused && currentPhoto) {
       setLocalChips(currentPhoto.people);
@@ -48,7 +47,6 @@ export const PeopleTagInput = forwardRef<PeopleTagInputRef, PeopleTagInputProps>
       if (!isFocused) return false;
       const inputUncommitted = chipInputRef.current?.hasUncommitted() ?? false;
       if (inputUncommitted) return true;
-      // Also check if local chips differ from committed
       if (currentPhoto && localChips.length !== currentPhoto.people.length) return true;
       if (currentPhoto && !localChips.every((chip, i) => chip === currentPhoto.people[i])) return true;
       return false;
@@ -77,7 +75,6 @@ export const PeopleTagInput = forwardRef<PeopleTagInputRef, PeopleTagInputProps>
 
       tagPeople(people);
 
-      // Add new names to global people list
       for (const name of people) {
         if (!globalPeople.includes(name)) {
           try {
@@ -103,27 +100,25 @@ export const PeopleTagInput = forwardRef<PeopleTagInputRef, PeopleTagInputProps>
     [localChips, commitPeople, onFocusChange]
   );
 
-  const handleRemoveBadge = useCallback(
+  const handleRemoveChip = useCallback(
     (index: number) => {
-      if (!currentPhoto) return;
-      const updated = [...currentPhoto.people];
+      const updated = [...localChips];
       updated.splice(index, 1);
-      tagPeople(updated);
       setLocalChips(updated);
+      commitPeople(updated);
     },
-    [currentPhoto, tagPeople]
+    [localChips, commitPeople]
   );
 
   return (
     <div className="w-full">
-      {currentPhoto && currentPhoto.people.length > 0 && !isFocused && (
-        <PeopleBadges people={currentPhoto.people} onRemove={handleRemoveBadge} />
-      )}
       <ChipInput
         ref={chipInputRef}
         onChipsChange={handleChipsChange}
         globalPeople={globalPeople}
         onFocusChange={handleFocusChange}
+        initialChips={currentPhoto?.people ?? []}
+        onRemoveChip={handleRemoveChip}
       />
     </div>
   );

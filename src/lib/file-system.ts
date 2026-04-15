@@ -10,6 +10,11 @@ export function getSupportedExtensions(): string[] {
 }
 
 export async function getDirectoryHandle(): Promise<FileSystemDirectoryHandle | null> {
+  if (typeof window.showDirectoryPicker !== 'function') {
+    throw new Error(
+      'Your browser does not support the File System Access API. Please use Chrome, Edge, or another Chromium-based browser.'
+    );
+  }
   try {
     const handle = await window.showDirectoryPicker({ mode: 'read' });
     return handle;

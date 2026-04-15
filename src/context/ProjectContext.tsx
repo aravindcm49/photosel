@@ -11,11 +11,15 @@ interface ProjectContextType {
   totalPhotos: number;
   photoNames: string[];
   currentPhoto: PhotoData | null;
+  viewedCount: number;
+  selectedCount: number;
+  skippedCount: number;
   markPhoto: (status: PhotoStatus) => void;
   rotatePhoto: () => void;
   tagPeople: (people: string[]) => void;
   goToNext: () => boolean;
   goToPrevious: () => void;
+  flushSave: () => Promise<void>;
 }
 
 const ProjectContext = createContext<ProjectContextType | null>(null);
@@ -43,6 +47,9 @@ export function ProjectProvider({ initialProject, dirHandle, children }: Project
   const totalPhotos = photoNames.length;
   const currentPhotoName = photoNames[currentIndex] ?? null;
   const currentPhoto = currentPhotoName ? project.photos[currentPhotoName] : null;
+  const viewedCount = countReviewed(project.photos);
+  const selectedCount = Object.values(project.photos).filter((p) => p.status === 'selected').length;
+  const skippedCount = Object.values(project.photos).filter((p) => p.status === 'skipped').length;
 
   const persistProject = useCallback((updatedProject: Project) => {
     if (debounceRef.current) {
@@ -140,6 +147,18 @@ export function ProjectProvider({ initialProject, dirHandle, children }: Project
     [currentPhotoName, persistProject]
   );
 
+  const flushSave = useCallback(async () => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    try {
+      await saveProject(project);
+    } catch {
+      // Silently fail
+    }
+  }, [project]);
+
   const goToNext = useCallback(() => {
     if (currentIndex < totalPhotos - 1) {
       setCurrentIndex(currentIndex + 1);
@@ -162,11 +181,15 @@ export function ProjectProvider({ initialProject, dirHandle, children }: Project
     totalPhotos,
     photoNames,
     currentPhoto,
+    viewedCount,
+    selectedCount,
+    skippedCount,
     markPhoto,
     rotatePhoto,
     tagPeople,
     goToNext,
     goToPrevious,
+    flushSave,
   };
 
   return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;

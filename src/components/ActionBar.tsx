@@ -43,14 +43,14 @@ export const ActionBar = forwardRef<ActionBarRef, ActionBarProps>(function Actio
   };
 
   return (
-    <div className="flex items-center justify-center gap-4 border-t bg-background p-4">
+    <div className="flex items-center justify-center gap-4 p-2">
       <Tooltip>
         <TooltipTrigger className="inline-flex">
           <Button
             variant="outline"
             size="lg"
             onClick={handleSkip}
-            className="min-w-[120px]"
+            className="min-w-[100px] border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white backdrop-blur-sm"
           >
             Skip
           </Button>
@@ -67,7 +67,7 @@ export const ActionBar = forwardRef<ActionBarRef, ActionBarProps>(function Actio
           <Button
             size="lg"
             onClick={handleAdd}
-            className="min-w-[120px]"
+            className="min-w-[100px] bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm border border-white/30"
           >
             Add to List
           </Button>

@@ -14,10 +14,10 @@ export function RotateButton() {
       <TooltipTrigger className="inline-flex">
         <button
           onClick={rotatePhoto}
-          className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
           aria-label="Rotate photo"
         >
-          <RotateCw className="h-5 w-5" />
+          <RotateCw className="h-4 w-4" />
         </button>
       </TooltipTrigger>
       <TooltipContent>Rotate (R)</TooltipContent>

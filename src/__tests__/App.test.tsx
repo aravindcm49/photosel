@@ -21,7 +21,7 @@ describe('App', () => {
   it('renders the app title', async () => {
     render(<App />);
     await waitFor(() => {
-      expect(screen.getByText('Wedding Photo Selector')).toBeInTheDocument();
+      expect(screen.getByText('Photo Selector')).toBeInTheDocument();
     });
   });
 });

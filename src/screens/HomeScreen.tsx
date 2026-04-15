@@ -77,8 +77,10 @@ export function HomeScreen({ onOpenProject, onResumeProject }: HomeScreenProps) 
       await saveProject(project);
       await loadProjects();
       onOpenProject(project, dirHandle);
-    } catch {
-      toast.error('Failed to open folder. Permission may have been denied.');
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to open folder. Permission may have been denied.';
+      toast.error(message);
     } finally {
       setOpening(false);
     }
@@ -118,8 +120,10 @@ export function HomeScreen({ onOpenProject, onResumeProject }: HomeScreenProps) 
         } else {
           toast.error('Project not found in database.');
         }
-      } catch {
-        toast.error('Failed to resume project. Permission may have been denied.');
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : 'Failed to resume project. Permission may have been denied.';
+        toast.error(message);
       }
     },
     [onResumeProject]
@@ -135,7 +139,7 @@ export function HomeScreen({ onOpenProject, onResumeProject }: HomeScreenProps) 
 
   return (
     <div className="mx-auto max-w-2xl p-6">
-      <h1 className="mb-6 text-2xl font-bold">Wedding Photo Selector</h1>
+      <h1 className="mb-6 text-center text-2xl font-bold">Photo Selector</h1>
 
       {projects.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-4 py-20">

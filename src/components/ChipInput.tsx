@@ -10,13 +10,15 @@ interface ChipInputProps {
   onChipsChange: (chips: string[]) => void;
   globalPeople: string[];
   onFocusChange?: (focused: boolean) => void;
+  initialChips?: string[];
+  onRemoveChip?: (index: number) => void;
 }
 
 export const ChipInput = forwardRef<ChipInputRef, ChipInputProps>(function ChipInput(
-  { onChipsChange, globalPeople, onFocusChange },
+  { onChipsChange, globalPeople, onFocusChange, initialChips, onRemoveChip },
   ref
 ) {
-  const [chips, setChips] = useState<string[]>([]);
+  const [chips, setChips] = useState<string[]>(initialChips ?? []);
   const [inputValue, setInputValue] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -30,12 +32,15 @@ export const ChipInput = forwardRef<ChipInputRef, ChipInputProps>(function ChipI
   const inputValueRef = useRef(inputValue);
   inputValueRef.current = inputValue;
 
+  // Sync chips when initialChips changes (photo navigation)
+  useEffect(() => {
+    setChips(initialChips ?? []);
+  }, [initialChips]);
+
   useImperativeHandle(ref, () => ({
-    hasUncommitted: () => inputValueRef.current.trim() !== '' || chipsRef.current.length > 0,
+    hasUncommitted: () => inputValueRef.current.trim() !== '',
     clear: () => {
-      setChips([]);
       setInputValue('');
-      chipsRef.current = [];
       inputValueRef.current = '';
       setShowSuggestions(false);
       setSelectedSuggestion(-1);
@@ -83,6 +88,7 @@ export const ChipInput = forwardRef<ChipInputRef, ChipInputProps>(function ChipI
         setChips((prev) => [...prev, trimmed]);
       }
       setInputValue('');
+      inputValueRef.current = '';
       setShowSuggestions(false);
       setSelectedSuggestion(-1);
     },
@@ -92,8 +98,9 @@ export const ChipInput = forwardRef<ChipInputRef, ChipInputProps>(function ChipI
   const removeChip = useCallback(
     (index: number) => {
       setChips((prev) => prev.filter((_, i) => i !== index));
+      onRemoveChip?.(index);
     },
-    []
+    [onRemoveChip]
   );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -106,10 +113,12 @@ export const ChipInput = forwardRef<ChipInputRef, ChipInputProps>(function ChipI
         addChip(part);
       }
       setInputValue('');
+      inputValueRef.current = '';
       return;
     }
 
     setInputValue(value);
+    inputValueRef.current = value;
     updateSuggestions(value);
   };
 
@@ -125,11 +134,13 @@ export const ChipInput = forwardRef<ChipInputRef, ChipInputProps>(function ChipI
       removeChip(chips.length - 1);
     } else if (e.key === 'ArrowDown' && showSuggestions) {
       e.preventDefault();
+      e.stopPropagation();
       setSelectedSuggestion((prev) =>
         prev < suggestions.length - 1 ? prev + 1 : prev
       );
     } else if (e.key === 'ArrowUp' && showSuggestions) {
       e.preventDefault();
+      e.stopPropagation();
       setSelectedSuggestion((prev) => (prev > 0 ? prev - 1 : -1));
     } else if (e.key === 'Escape') {
       setShowSuggestions(false);
@@ -148,6 +159,7 @@ export const ChipInput = forwardRef<ChipInputRef, ChipInputProps>(function ChipI
     blurTimerRef.current = setTimeout(() => {
       onFocusChange?.(false);
       setShowSuggestions(false);
+      // Auto-commit typed text as a chip on blur
       if (inputValue.trim()) {
         addChip(inputValue);
       }
@@ -161,16 +173,16 @@ export const ChipInput = forwardRef<ChipInputRef, ChipInputProps>(function ChipI
 
   return (
     <div className="relative w-full">
-      <div className="flex flex-wrap items-center gap-1 rounded-lg border bg-background px-3 py-2">
+      <div className="flex flex-wrap items-center gap-1 rounded-lg border border-white/30 bg-white/10 px-3 py-2 backdrop-blur-sm">
         {chips.map((chip, index) => (
           <button
             key={index}
             onClick={() => removeChip(index)}
-            className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-sm hover:bg-primary/20"
+            className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-sm text-white hover:bg-white/30"
             type="button"
           >
             {chip}
-            <span className="text-xs text-muted-foreground">×</span>
+            <span className="text-xs text-white/60">×</span>
           </button>
         ))}
         <input
@@ -182,17 +194,19 @@ export const ChipInput = forwardRef<ChipInputRef, ChipInputProps>(function ChipI
           onFocus={handleFocus}
           onBlur={handleBlur}
           placeholder={chips.length === 0 ? 'Type names (comma-separated)...' : ''}
-          className="min-w-[100px] flex-1 border-none bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          className="min-w-[100px] flex-1 border-none bg-transparent text-sm text-white outline-none placeholder:text-white/50"
         />
       </div>
 
       {showSuggestions && (
-        <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-40 overflow-auto rounded-lg border bg-popover shadow-md">
+        <div className="absolute left-0 right-0 bottom-full z-50 mb-1 max-h-40 overflow-auto rounded-lg border border-white/20 bg-black/90 shadow-lg backdrop-blur-sm">
           {suggestions.map((name, index) => (
             <button
               key={name}
-              className={`w-full px-3 py-2 text-left text-sm hover:bg-accent ${
-                index === selectedSuggestion ? 'bg-accent' : ''
+              className={`w-full px-3 py-2 text-left text-sm text-white ${
+                index === selectedSuggestion
+                  ? 'bg-white/20'
+                  : 'hover:bg-white/10'
               }`}
               onMouseDown={(e) => {
                 e.preventDefault();
