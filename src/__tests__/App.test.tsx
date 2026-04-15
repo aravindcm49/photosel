@@ -1,10 +1,27 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+
+// Mock the modules before importing App
+vi.mock('../lib/db', () => ({
+  getAllProjects: vi.fn().mockResolvedValue([]),
+  deleteProject: vi.fn(),
+  saveProject: vi.fn(),
+}));
+
+vi.mock('../lib/file-system', () => ({
+  getDirectoryHandle: vi.fn(),
+  getImageFilesFromDirectory: vi.fn(),
+  analyzeAspectRatio: vi.fn(),
+  getSupportedExtensions: vi.fn(() => ['.jpg', '.jpeg', '.png', '.webp', '.gif']),
+}));
+
 import App from '../App';
 
 describe('App', () => {
-  it('renders the app title', () => {
+  it('renders the app title', async () => {
     render(<App />);
-    expect(screen.getByText('Wedding Photo Selector')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Wedding Photo Selector')).toBeInTheDocument();
+    });
   });
 });
