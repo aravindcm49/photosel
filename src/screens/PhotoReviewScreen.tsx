@@ -4,8 +4,10 @@ import { ActionBar } from '@/components/ActionBar';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ProgressIndicator } from '@/components/ProgressIndicator';
 import { RotateButton } from '@/components/RotateButton';
+import { NavigationBar } from '@/components/NavigationBar';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { getImageFilesFromDirectory } from '@/lib/file-system';
 import type { Project } from '@/types';
 import { useEffect, useState } from 'react';
@@ -77,6 +79,9 @@ function PhotoReviewContent({
   const currentPhotoName = photoNames[currentIndex] ?? '';
   const currentPhoto = project.photos[currentPhotoName];
 
+  // Enable keyboard shortcuts (input not focused initially)
+  useKeyboardShortcuts(false);
+
   useEffect(() => {
     if (project.reviewedCount === totalPhotos && totalPhotos > 0) {
       onComplete(project);
@@ -116,6 +121,9 @@ function PhotoReviewContent({
           <StatusBadge />
         </div>
       </div>
+
+      {/* Navigation */}
+      <NavigationBar />
 
       {/* Action bar */}
       <ActionBar />
