@@ -3,6 +3,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
 import { HomeScreen } from '@/screens/HomeScreen';
 import { PhotoReviewScreen } from '@/screens/PhotoReviewScreen';
+import { SummaryScreen } from '@/screens/SummaryScreen';
 import type { Project } from '@/types';
 
 type Screen = 'home' | 'review' | 'summary';
@@ -20,7 +21,7 @@ function App() {
 
   const handleResumeProject = useCallback((project: Project) => {
     setCurrentProject(project);
-    setDirHandle(null); // Will re-prompt for folder permission
+    setDirHandle(null);
     setScreen('review');
   }, []);
 
@@ -53,13 +54,10 @@ function App() {
           />
         )}
         {screen === 'summary' && currentProject && (
-          <div className="flex min-h-screen flex-col items-center justify-center gap-4">
-            <h1 className="text-2xl font-bold">All photos reviewed!</h1>
-            <p className="text-muted-foreground">Summary screen (coming soon)</p>
-            <button onClick={handleBackToHome} className="text-primary underline">
-              Back to Home
-            </button>
-          </div>
+          <SummaryScreen
+            project={currentProject}
+            onBackToHome={handleBackToHome}
+          />
         )}
       </div>
       <Toaster />
