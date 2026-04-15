@@ -1,30 +1,39 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
 import { HomeScreen } from '@/screens/HomeScreen';
 import { PhotoReviewScreen } from '@/screens/PhotoReviewScreen';
 import type { Project } from '@/types';
 
-type Screen = 'home' | 'review';
+type Screen = 'home' | 'review' | 'summary';
 
 function App() {
   const [screen, setScreen] = useState<Screen>('home');
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
+  const [dirHandle, setDirHandle] = useState<FileSystemDirectoryHandle | null>(null);
 
-  const handleOpenProject = (_project: Project, _dirHandle: FileSystemDirectoryHandle) => {
-    setCurrentProject(_project);
-    setScreen('review');
-  };
-
-  const handleResumeProject = (project: Project) => {
+  const handleOpenProject = useCallback((project: Project, handle: FileSystemDirectoryHandle) => {
     setCurrentProject(project);
+    setDirHandle(handle);
     setScreen('review');
-  };
+  }, []);
 
-  const handleBackToHome = () => {
+  const handleResumeProject = useCallback((project: Project) => {
+    setCurrentProject(project);
+    setDirHandle(null); // Will re-prompt for folder permission
+    setScreen('review');
+  }, []);
+
+  const handleBackToHome = useCallback(() => {
     setCurrentProject(null);
+    setDirHandle(null);
     setScreen('home');
-  };
+  }, []);
+
+  const handleComplete = useCallback((project: Project) => {
+    setCurrentProject(project);
+    setScreen('summary');
+  }, []);
 
   return (
     <TooltipProvider>
@@ -37,9 +46,20 @@ function App() {
         )}
         {screen === 'review' && currentProject && (
           <PhotoReviewScreen
-            folderName={currentProject.folderName}
+            project={currentProject}
+            dirHandle={dirHandle}
             onBack={handleBackToHome}
+            onComplete={handleComplete}
           />
+        )}
+        {screen === 'summary' && currentProject && (
+          <div className="flex min-h-screen flex-col items-center justify-center gap-4">
+            <h1 className="text-2xl font-bold">All photos reviewed!</h1>
+            <p className="text-muted-foreground">Summary screen (coming soon)</p>
+            <button onClick={handleBackToHome} className="text-primary underline">
+              Back to Home
+            </button>
+          </div>
         )}
       </div>
       <Toaster />
