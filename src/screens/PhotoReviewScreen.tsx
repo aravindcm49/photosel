@@ -1,4 +1,4 @@
-import { useProject, ProjectProvider } from '@/context/ProjectContext';
+import { useProject, ProjectProvider, type PhotoFilter } from '@/context/ProjectContext';
 import { PhotoViewer } from '@/components/PhotoViewer';
 import { ActionBar, type ActionBarRef } from '@/components/ActionBar';
 import { RotateButton } from '@/components/RotateButton';
@@ -9,7 +9,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { ArrowLeft, ChevronLeft, ChevronRight, Check, X, ClipboardList } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Check, X, ClipboardList, Filter } from 'lucide-react';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import type { Project } from '@/types';
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -36,45 +36,78 @@ export function PhotoReviewScreen({ project, onBack, onComplete }: PhotoReviewSc
 function StatusBadge({ status }: { status: 'selected' | 'skipped' | null }) {
   if (status === 'selected') {
     return (
-      <div className="flex items-center gap-1.5 rounded-full bg-green-500/60 px-3 py-0.5 backdrop-blur-sm border border-green-400/50">
-        <Check className="h-3.5 w-3.5 text-green-200" />
-        <span className="text-sm font-medium text-green-100">Selected</span>
+      <div className="flex items-center gap-1 rounded-full bg-green-500/60 px-2 py-0.5 backdrop-blur-sm border border-green-400/50">
+        <Check className="h-3 w-3 text-green-200" />
+        <span className="text-xs font-medium text-green-100">Selected</span>
       </div>
     );
   }
   if (status === 'skipped') {
     return (
-      <div className="flex items-center gap-1.5 rounded-full bg-red-500/60 px-3 py-0.5 backdrop-blur-sm border border-red-400/50">
-        <X className="h-3.5 w-3.5 text-red-200" />
-        <span className="text-sm font-medium text-red-100">Skipped</span>
+      <div className="flex items-center gap-1 rounded-full bg-red-500/60 px-2 py-0.5 backdrop-blur-sm border border-red-400/50">
+        <X className="h-3 w-3 text-red-200" />
+        <span className="text-xs font-medium text-red-100">Skipped</span>
       </div>
     );
   }
   return null;
 }
 
-function StatsBadge({ selectedCount, skippedCount, totalPhotos }: {
+function StatsBadge({ selectedCount, skippedCount }: {
   selectedCount: number;
   skippedCount: number;
-  totalPhotos: number;
 }) {
   return (
     <Tooltip>
       <TooltipTrigger className="inline-flex">
-        <span className="rounded-full bg-white/20 px-3 py-0.5 text-sm font-medium text-white cursor-default">
+        <span className="inline-flex items-center justify-center rounded-full bg-black/60 px-4 h-7 min-w-[4.5rem] text-xs font-medium text-white backdrop-blur-sm border border-white/20 cursor-default">
           <span className="text-green-400">{selectedCount}</span>
-          <span className="text-white/60"> : </span>
+          <span className="text-gray-300 mx-1">:</span>
           <span className="text-red-400">{skippedCount}</span>
-          <span className="text-white/60"> / {totalPhotos}</span>
         </span>
       </TooltipTrigger>
       <TooltipContent>
-        <span className="text-green-400">Selected</span>
-        <span className="text-white/60"> : </span>
-        <span className="text-red-400">Skipped</span>
-        <span className="text-white/60"> / Total</span>
+        <span className="text-green-700 font-medium">Selected</span>
+        <span className="opacity-60"> : </span>
+        <span className="text-red-700 font-medium">Skipped</span>
       </TooltipContent>
     </Tooltip>
+  );
+}
+
+function FilterCombobox({ value, onChange }: { value: PhotoFilter; onChange: (value: PhotoFilter) => void }) {
+  const filterOptions: { value: PhotoFilter; label: string }[] = [
+    { value: 'all', label: 'All' },
+    { value: 'selected', label: 'Selected' },
+    { value: 'skipped', label: 'Skipped' },
+  ];
+
+  return (
+    <select
+        value={value}
+        onChange={(e) => onChange(e.target.value as PhotoFilter)}
+        className="appearance-none rounded-full bg-black/60 px-3 h-7 min-w-[6rem] text-xs font-medium text-white backdrop-blur-sm border border-white/20 cursor-pointer hover:bg-black/70 hover:border-white/30 focus:outline-none focus:ring-1 focus:ring-white/30"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.6)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'right 8px center',
+        }}
+      >
+        {filterOptions.map((opt) => (
+          <option key={opt.value} value={opt.value} className="bg-gray-900 text-white">
+            {opt.label}
+          </option>
+        ))}
+      </select>
+  );
+}
+
+function FilteredPositionBadge({ currentIndex, filteredCount }: { currentIndex: number; filteredCount: number }) {
+  if (filteredCount === 0) return null;
+  return (
+    <span className="inline-flex items-center rounded-full bg-black/60 px-2.5 h-7 text-xs font-medium text-white/70 backdrop-blur-sm border border-white/10 cursor-default">
+      {currentIndex + 1} / {filteredCount}
+    </span>
   );
 }
 
@@ -88,16 +121,18 @@ function PhotoReviewContent({
   const {
     project,
     currentIndex,
-    totalPhotos,
+    filteredCount,
     selectedCount,
     skippedCount,
     currentPhoto,
+    filter,
+    setFilter,
+    filteredPhotoNames,
     goToNext,
     goToPrevious,
     flushSave,
   } = useProject();
-  const photoNames = Object.keys(project.photos).sort();
-  const currentPhotoName = photoNames[currentIndex] ?? '';
+  const currentPhotoName = filteredPhotoNames[currentIndex] ?? '';
 
   const actionBarRef = useRef<ActionBarRef>(null);
   const [isInputFocused, setIsInputFocused] = useState(false);
@@ -150,6 +185,7 @@ function PhotoReviewContent({
       setPendingNavigation(direction);
       setShowConfirmDialog(true);
     } else {
+      actionBarRef.current?.commitTags();
       if (direction === 'next') {
         goToNext();
       } else {
@@ -178,31 +214,40 @@ function PhotoReviewContent({
   // Enable keyboard shortcuts
   useKeyboardShortcuts({
     isInputFocused,
-    onNavigateNext: isInputFocused ? () => checkAndNavigate('next') : undefined,
-    onNavigatePrevious: isInputFocused ? () => checkAndNavigate('previous') : undefined,
+    onTagCommit: () => actionBarRef.current?.commitTags(),
   });
 
   const isFirst = currentIndex === 0;
-  const isLast = currentIndex === totalPhotos - 1;
+  const isLast = currentIndex === filteredCount - 1;
 
-  // Completion: show summary when reaching the last photo in the list
+  // Completion: show summary when reaching the last photo — only in 'all' filter
   useEffect(() => {
-    if (isLast && totalPhotos > 0) {
+    if (filter === 'all' && isLast && filteredCount > 0) {
       flushSave().then(() => {
         onComplete(project);
       });
     }
-  }, [isLast, totalPhotos, project, onComplete, flushSave]);
+  }, [filter, isLast, filteredCount, project, onComplete, flushSave]);
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-black">
-      {/* Photo fills viewport */}
-      <PhotoViewer
-        folderName={project.folderName}
-        photoName={currentPhotoName}
-        aspectRatio={project.aspectRatio ?? 0.75}
-        rotation={currentPhoto?.rotation ?? 0}
-      />
+      {/* Photo fills viewport — or empty state when no photos match filter */}
+      {filteredCount === 0 ? (
+        <div className="flex h-full items-center justify-center">
+          <div className="text-center">
+            <Filter className="mx-auto mb-3 h-10 w-10 text-white/30" />
+            <p className="text-lg font-medium text-white/50">No {filter} photos</p>
+            <p className="mt-1 text-sm text-white/30">Switch the filter to see photos</p>
+          </div>
+        </div>
+      ) : (
+        <PhotoViewer
+          folderName={project.folderName}
+          photoName={currentPhotoName}
+          aspectRatio={project.aspectRatio ?? 0.75}
+          rotation={currentPhoto?.rotation ?? 0}
+        />
+      )}
 
       {/* Top overlay bar - always visible */}
       <div className="absolute inset-x-0 top-0 flex items-center justify-between bg-gradient-to-b from-black/70 via-black/40 to-transparent px-4 py-3 z-10">
@@ -211,7 +256,9 @@ function PhotoReviewContent({
             <ArrowLeft className="mr-1 h-4 w-4" />
             Back
           </Button>
-          <StatsBadge selectedCount={selectedCount} skippedCount={skippedCount} totalPhotos={totalPhotos} />
+          <StatsBadge selectedCount={selectedCount} skippedCount={skippedCount} />
+          <FilterCombobox value={filter} onChange={setFilter} />
+          <FilteredPositionBadge currentIndex={currentIndex} filteredCount={filteredCount} />
         </div>
         <div className="absolute inset-x-0 flex justify-center pointer-events-none">
           <StatusBadge status={currentPhoto?.status ?? null} />
@@ -234,7 +281,7 @@ function PhotoReviewContent({
             </TooltipTrigger>
             <TooltipContent>Summary</TooltipContent>
           </Tooltip>
-          <span className="text-sm font-medium text-white">{project.folderName}</span>
+          <span className="text-sm font-medium text-white">{project.displayName || project.folderName}</span>
         </div>
       </div>
 
@@ -244,6 +291,7 @@ function PhotoReviewContent({
           onClick={() => checkAndNavigate('previous')}
           className="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/40 p-3 text-white/80 transition-colors hover:bg-black/60 hover:text-white"
           aria-label="Previous photo"
+          title="Previous (H / ←)"
         >
           <ChevronLeft className="h-6 w-6" />
         </button>
@@ -255,6 +303,7 @@ function PhotoReviewContent({
           onClick={() => checkAndNavigate('next')}
           className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/40 p-3 text-white/80 transition-colors hover:bg-black/60 hover:text-white"
           aria-label="Next photo"
+          title="Next (L / →)"
         >
           <ChevronRight className="h-6 w-6" />
         </button>

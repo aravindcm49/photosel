@@ -13,6 +13,7 @@ export interface ActionBarRef {
   hasUncommittedTags: () => boolean;
   clearUncommitted: () => void;
   focusTagInput: () => void;
+  commitTags: () => void;
 }
 
 interface ActionBarProps {
@@ -23,23 +24,24 @@ export const ActionBar = forwardRef<ActionBarRef, ActionBarProps>(function Actio
   { onTagInputFocusChange },
   ref
 ) {
-  const { markPhoto, goToNext } = useProject();
+  const { markAndAdvance } = useProject();
   const peopleTagInputRef = useRef<PeopleTagInputRef>(null);
 
   useImperativeHandle(ref, () => ({
     hasUncommittedTags: () => peopleTagInputRef.current?.hasUncommitted() ?? false,
     clearUncommitted: () => peopleTagInputRef.current?.clear(),
     focusTagInput: () => peopleTagInputRef.current?.focus(),
+    commitTags: () => peopleTagInputRef.current?.commitTags(),
   }));
 
   const handleSkip = () => {
-    markPhoto('skipped');
-    goToNext();
+    peopleTagInputRef.current?.commitTags();
+    markAndAdvance('skipped');
   };
 
   const handleAdd = () => {
-    markPhoto('selected');
-    goToNext();
+    peopleTagInputRef.current?.commitTags();
+    markAndAdvance('selected');
   };
 
   return (

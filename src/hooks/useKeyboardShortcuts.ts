@@ -4,69 +4,60 @@ import { useProject } from '@/context/ProjectContext';
 interface KeyboardShortcutOptions {
   isInputFocused: boolean;
   onTagFocus?: () => void;
-  onNavigateNext?: () => void;
-  onNavigatePrevious?: () => void;
+  onTagCommit?: () => void;
 }
 
 export function useKeyboardShortcuts({
   isInputFocused,
   onTagFocus,
-  onNavigateNext,
-  onNavigatePrevious,
+  onTagCommit,
 }: KeyboardShortcutOptions) {
-  const { goToNext, goToPrevious, markPhoto, rotatePhoto } = useProject();
+  const { goToNext, goToPrevious, markAndAdvance, rotateLeft, rotateRight } = useProject();
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      // When input is focused, only handle specific navigation keys and Escape
+      // When input is focused, ignore all shortcuts except Escape to blur
       if (isInputFocused) {
         if (e.key === 'Escape') {
           (document.activeElement as HTMLElement)?.blur();
-        }
-        // Handle arrow keys for navigation with potential confirmation
-        if (e.key === 'ArrowRight') {
-          e.preventDefault();
-          if (onNavigateNext) {
-            onNavigateNext();
-          } else {
-            goToNext();
-          }
-          return;
-        }
-        if (e.key === 'ArrowLeft') {
-          e.preventDefault();
-          if (onNavigatePrevious) {
-            onNavigatePrevious();
-          } else {
-            goToPrevious();
-          }
-          return;
         }
         return;
       }
 
       switch (e.key) {
         case 'ArrowLeft':
+        case 'h':
+        case 'H':
           e.preventDefault();
           goToPrevious();
           break;
         case 'ArrowRight':
+        case 'l':
+        case 'L':
           e.preventDefault();
           goToNext();
           break;
         case 's':
         case 'S':
-          markPhoto('skipped');
-          goToNext();
+          onTagCommit?.();
+          markAndAdvance('skipped');
           break;
         case 'a':
         case 'A':
-          markPhoto('selected');
-          goToNext();
+          onTagCommit?.();
+          markAndAdvance('selected');
           break;
-        case 'r':
-        case 'R':
-          rotatePhoto();
+        case 'j':
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            rotateLeft();
+          }
+          break;
+        case 'k':
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            rotateRight();
+          }
           break;
         case 't':
         case 'T':
@@ -78,5 +69,5 @@ export function useKeyboardShortcuts({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isInputFocused, goToNext, goToPrevious, markPhoto, rotatePhoto, onTagFocus, onNavigateNext, onNavigatePrevious]);
+  }, [isInputFocused, goToNext, goToPrevious, markAndAdvance, rotateLeft, rotateRight, onTagFocus, onTagCommit]);
 }
