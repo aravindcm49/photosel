@@ -72,7 +72,7 @@ export function createApp() {
       const contentType = ext === '.png' ? 'image/png' : 'image/jpeg';
 
       res.setHeader('Content-Type', contentType);
-      res.sendFile(cachedPath);
+      res.sendFile(cachedPath, { dotfiles: 'allow' });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to generate thumbnail';
       res.status(500).json({ error: message });
