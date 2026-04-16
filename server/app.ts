@@ -79,5 +79,28 @@ export function createApp() {
     }
   });
 
+  app.get('/api/folder/:folderName/photos/:photoName/original', (req, res) => {
+    const { folderName, photoName } = req.params;
+
+    const folderPath = folderRegistry.resolve(folderName);
+    if (!folderPath) {
+      res.status(404).json({ error: 'Folder not found. Please re-submit the folder path.' });
+      return;
+    }
+
+    const sourcePath = join(folderPath, photoName);
+
+    if (!existsSync(sourcePath)) {
+      res.status(404).json({ error: 'Photo not found' });
+      return;
+    }
+
+    const ext = extname(photoName).toLowerCase();
+    const contentType = ext === '.png' ? 'image/png' : 'image/jpeg';
+
+    res.setHeader('Content-Type', contentType);
+    res.sendFile(sourcePath);
+  });
+
   return app;
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { PhotoViewer } from '../components/PhotoViewer';
 
 describe('PhotoViewer', () => {
@@ -93,5 +93,103 @@ describe('PhotoViewer', () => {
     // No link rel=preload or prefetch elements
     const links = container.querySelectorAll('link[rel="preload"], link[rel="prefetch"]');
     expect(links).toHaveLength(0);
+  });
+
+  it('clicking thumbnail opens full-res overlay', () => {
+    render(
+      <PhotoViewer
+        folderName="TestFolder-abc12345"
+        photoName="photo.jpg"
+        aspectRatio={0.75}
+        rotation={0}
+      />
+    );
+
+    // No overlay initially
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    // Click the thumbnail to open overlay
+    const thumbnail = screen.getByAltText('photo.jpg');
+    fireEvent.click(thumbnail);
+
+    // Overlay should now be visible
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toHaveAttribute(
+      'aria-label',
+      'Full resolution image viewer'
+    );
+
+    // The overlay should contain an img with the original URL
+    const overlayImages = screen.getByRole('dialog').querySelectorAll('img');
+    expect(overlayImages).toHaveLength(1);
+    expect(overlayImages[0]).toHaveAttribute(
+      'src',
+      '/api/folder/TestFolder-abc12345/photos/photo.jpg/original'
+    );
+  });
+
+  it('closing overlay unloads the full-res image', () => {
+    render(
+      <PhotoViewer
+        folderName="TestFolder-abc12345"
+        photoName="photo.jpg"
+        aspectRatio={0.75}
+        rotation={0}
+      />
+    );
+
+    // Open the overlay
+    const thumbnail = screen.getByAltText('photo.jpg');
+    fireEvent.click(thumbnail);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    // Close via the close button
+    const closeButton = screen.getByLabelText('Close full resolution view');
+    fireEvent.click(closeButton);
+
+    // Overlay should be removed from DOM
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('clicking overlay backdrop closes the overlay', () => {
+    render(
+      <PhotoViewer
+        folderName="TestFolder-abc12345"
+        photoName="photo.jpg"
+        aspectRatio={0.75}
+        rotation={0}
+      />
+    );
+
+    // Open the overlay
+    const thumbnail = screen.getByAltText('photo.jpg');
+    fireEvent.click(thumbnail);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    // Click the backdrop (the dialog element itself)
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(dialog);
+
+    // Overlay should be removed
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('applies rotation to the full-res overlay image', () => {
+    render(
+      <PhotoViewer
+        folderName="TestFolder-abc12345"
+        photoName="photo.jpg"
+        aspectRatio={0.75}
+        rotation={90}
+      />
+    );
+
+    // Open the overlay
+    const thumbnail = screen.getByAltText('photo.jpg');
+    fireEvent.click(thumbnail);
+
+    // The overlay image should have the rotation transform
+    const overlayImage = screen.getByRole('dialog').querySelector('img')!;
+    expect(overlayImage).toHaveStyle({ transform: 'rotate(90deg)' });
   });
 });

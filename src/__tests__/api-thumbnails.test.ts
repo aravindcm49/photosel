@@ -119,3 +119,68 @@ describe('GET /api/folder/:folderName/photos/:photoName', () => {
     expect(res.body.error).toContain('Unsupported image format');
   });
 });
+
+describe('GET /api/folder/:folderName/photos/:photoName/original', () => {
+  let registeredName: string;
+  let testTmpDir: string;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    folderRegistry.clear();
+
+    testTmpDir = join(tmpdir(), `original-test-${Date.now()}`);
+    await mkdir(testTmpDir, { recursive: true });
+    registeredName = folderRegistry.register(testTmpDir);
+  });
+
+  afterEach(async () => {
+    await rm(testTmpDir, { recursive: true, force: true });
+  });
+
+  it('serves the original jpg with correct Content-Type', async () => {
+    await writeFile(join(testTmpDir, 'photo.jpg'), 'fake-original-jpeg-data');
+    mockExistsSync.mockReturnValue(true);
+
+    const app = createApp();
+    const res = await request(app)
+      .get(`/api/folder/${registeredName}/photos/photo.jpg/original`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/image\/jpeg/);
+  });
+
+  it('serves the original png with image/png Content-Type', async () => {
+    await writeFile(join(testTmpDir, 'image.png'), 'fake-original-png-data');
+    mockExistsSync.mockReturnValue(true);
+
+    const app = createApp();
+    const res = await request(app)
+      .get(`/api/folder/${registeredName}/photos/image.png/original`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/image\/png/);
+  });
+
+  it('returns 404 when folder is not in registry', async () => {
+    const app = createApp();
+    const res = await request(app)
+      .get('/api/folder/unknown-folder/photos/photo.jpg/original');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toContain('Folder not found');
+  });
+
+  it('returns 404 when photo file does not exist on disk', async () => {
+    mockExistsSync.mockImplementation((p: unknown) => {
+      const str = String(p);
+      return !str.endsWith('missing.jpg');
+    });
+
+    const app = createApp();
+    const res = await request(app)
+      .get(`/api/folder/${registeredName}/photos/missing.jpg/original`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toContain('Photo not found');
+  });
+});
