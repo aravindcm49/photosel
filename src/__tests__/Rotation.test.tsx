@@ -26,7 +26,7 @@ vi.mock('../lib/image-utils', () => ({
 
 function wrapper({ children }: { children: React.ReactNode }) {
   return (
-    <ProjectProvider initialProject={mockProject} dirHandle={null}>
+    <ProjectProvider initialProject={mockProject}>
       {children}
     </ProjectProvider>
   );

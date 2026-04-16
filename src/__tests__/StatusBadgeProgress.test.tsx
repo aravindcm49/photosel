@@ -53,7 +53,7 @@ describe('StatusBadge', () => {
 
   it('shows green check for selected photos', () => {
     render(
-      <ProjectProvider initialProject={selectedProject} dirHandle={null}>
+      <ProjectProvider initialProject={selectedProject}>
         <StatusBadge />
       </ProjectProvider>
     );
@@ -62,7 +62,7 @@ describe('StatusBadge', () => {
 
   it('shows red X for skipped photos', () => {
     render(
-      <ProjectProvider initialProject={skippedProject} dirHandle={null}>
+      <ProjectProvider initialProject={skippedProject}>
         <StatusBadge />
       </ProjectProvider>
     );
@@ -71,7 +71,7 @@ describe('StatusBadge', () => {
 
   it('renders nothing for undecided photos', () => {
     const { container } = render(
-      <ProjectProvider initialProject={undecidedProject} dirHandle={null}>
+      <ProjectProvider initialProject={undecidedProject}>
         <StatusBadge />
       </ProjectProvider>
     );
@@ -84,7 +84,7 @@ describe('ProgressIndicator', () => {
 
   it('shows reviewed count out of total', () => {
     render(
-      <ProjectProvider initialProject={selectedProject} dirHandle={null}>
+      <ProjectProvider initialProject={selectedProject}>
         <ProgressIndicator />
       </ProjectProvider>
     );

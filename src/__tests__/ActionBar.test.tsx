@@ -45,7 +45,7 @@ vi.mock('../lib/image-utils', () => ({
 
 function renderActionBar() {
   return render(
-    <ProjectProvider initialProject={mockProject} dirHandle={null}>
+    <ProjectProvider initialProject={mockProject}>
       <ActionBar />
     </ProjectProvider>
   );

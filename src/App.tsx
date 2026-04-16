@@ -11,23 +11,19 @@ type Screen = 'home' | 'review' | 'summary';
 function App() {
   const [screen, setScreen] = useState<Screen>('home');
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
-  const [dirHandle, setDirHandle] = useState<FileSystemDirectoryHandle | null>(null);
 
   const handleOpenProject = useCallback((project: Project) => {
     setCurrentProject(project);
-    setDirHandle(null);
     setScreen('review');
   }, []);
 
-  const handleResumeProject = useCallback((project: Project, handle: FileSystemDirectoryHandle) => {
+  const handleResumeProject = useCallback((project: Project, _handle: FileSystemDirectoryHandle) => {
     setCurrentProject(project);
-    setDirHandle(handle);
     setScreen('review');
   }, []);
 
   const handleBackToHome = useCallback(() => {
     setCurrentProject(null);
-    setDirHandle(null);
     setScreen('home');
   }, []);
 
@@ -48,7 +44,6 @@ function App() {
         {screen === 'review' && currentProject && (
           <PhotoReviewScreen
             project={currentProject}
-            dirHandle={dirHandle}
             onBack={handleBackToHome}
             onComplete={handleComplete}
           />

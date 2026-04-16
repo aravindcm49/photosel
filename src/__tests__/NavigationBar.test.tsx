@@ -38,7 +38,7 @@ function IndexSetter({ index }: { index: number }) {
 
 function renderNavigationBar(initialIndex = 0) {
   return render(
-    <ProjectProvider initialProject={mockProject} dirHandle={null}>
+    <ProjectProvider initialProject={mockProject}>
       <IndexSetter index={initialIndex} />
     </ProjectProvider>
   );

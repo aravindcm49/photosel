@@ -11,57 +11,21 @@ import {
 } from '@/components/ui/tooltip';
 import { ArrowLeft, ChevronLeft, ChevronRight, Check, X, ClipboardList } from 'lucide-react';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { getImageFilesFromDirectory } from '@/lib/file-system';
 import type { Project } from '@/types';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 
 type PendingNavigation = 'next' | 'previous' | null;
 
 interface PhotoReviewScreenProps {
   project: Project;
-  dirHandle: FileSystemDirectoryHandle | null;
   onBack: () => void;
   onComplete: (project: Project) => void;
 }
 
-export function PhotoReviewScreen({ project, dirHandle, onBack, onComplete }: PhotoReviewScreenProps) {
-  const [fileHandles, setFileHandles] = useState<FileSystemFileHandle[]>([]);
-  const [loading, setLoading] = useState(!!dirHandle);
-
-  useEffect(() => {
-    if (!dirHandle) {
-      setLoading(false);
-      return;
-    }
-
-    const handle = dirHandle;
-
-    async function loadFiles() {
-      try {
-        const handles = await getImageFilesFromDirectory(handle);
-        setFileHandles(handles);
-      } catch {
-        // Error handled by caller
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadFiles();
-  }, [dirHandle]);
-
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-black">
-        <p className="text-white/60">Loading photos...</p>
-      </div>
-    );
-  }
-
+export function PhotoReviewScreen({ project, onBack, onComplete }: PhotoReviewScreenProps) {
   return (
-    <ProjectProvider initialProject={project} dirHandle={dirHandle}>
+    <ProjectProvider initialProject={project}>
       <PhotoReviewContent
-        fileHandles={fileHandles}
         onBack={onBack}
         onComplete={onComplete}
       />
@@ -115,11 +79,9 @@ function StatsBadge({ selectedCount, skippedCount, totalPhotos }: {
 }
 
 function PhotoReviewContent({
-  fileHandles,
   onBack,
   onComplete,
 }: {
-  fileHandles: FileSystemFileHandle[];
   onBack: () => void;
   onComplete: (project: Project) => void;
 }) {
@@ -134,7 +96,6 @@ function PhotoReviewContent({
     goToPrevious,
     flushSave,
   } = useProject();
-  const currentFileHandle = fileHandles[currentIndex] ?? null;
   const photoNames = Object.keys(project.photos).sort();
   const currentPhotoName = photoNames[currentIndex] ?? '';
 
@@ -237,12 +198,10 @@ function PhotoReviewContent({
     <div className="relative h-screen w-screen overflow-hidden bg-black">
       {/* Photo fills viewport */}
       <PhotoViewer
-        fileName={currentPhotoName}
-        fileHandle={currentFileHandle}
-        aspectRatio={(project as Project & { aspectRatio?: number }).aspectRatio ?? 0.75}
+        folderName={project.folderName}
+        photoName={currentPhotoName}
+        aspectRatio={project.aspectRatio ?? 0.75}
         rotation={currentPhoto?.rotation ?? 0}
-        allFileHandles={fileHandles}
-        currentIndex={currentIndex}
       />
 
       {/* Top overlay bar - always visible */}

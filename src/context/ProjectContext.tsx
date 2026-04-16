@@ -5,7 +5,6 @@ import { countReviewed } from '@/lib/image-utils';
 
 interface ProjectContextType {
   project: Project;
-  dirHandle: FileSystemDirectoryHandle | null;
   currentIndex: number;
   setCurrentIndex: (index: number) => void;
   totalPhotos: number;
@@ -34,11 +33,10 @@ export function useProject() {
 
 interface ProjectProviderProps {
   initialProject: Project;
-  dirHandle: FileSystemDirectoryHandle | null;
   children: React.ReactNode;
 }
 
-export function ProjectProvider({ initialProject, dirHandle, children }: ProjectProviderProps) {
+export function ProjectProvider({ initialProject, children }: ProjectProviderProps) {
   const [project, setProject] = useState<Project>(initialProject);
   const [currentIndex, setCurrentIndex] = useState(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -175,7 +173,6 @@ export function ProjectProvider({ initialProject, dirHandle, children }: Project
 
   const value: ProjectContextType = {
     project,
-    dirHandle,
     currentIndex,
     setCurrentIndex,
     totalPhotos,

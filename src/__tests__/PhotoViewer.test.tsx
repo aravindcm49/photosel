@@ -1,172 +1,97 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { PhotoViewer } from '../components/PhotoViewer';
-import { imageCache } from '../lib/image-cache';
-
-vi.mock('../lib/image-cache', async () => {
-  const actual = await vi.importActual<typeof import('../lib/image-cache')>('../lib/image-cache');
-  return {
-    ...actual,
-    loadImageAsBlobUrl: vi.fn(),
-    preloadImages: vi.fn(),
-  };
-});
-
-import { loadImageAsBlobUrl, preloadImages } from '../lib/image-cache';
-
-const mockLoadImage = vi.mocked(loadImageAsBlobUrl);
 
 describe('PhotoViewer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    imageCache.clear();
   });
 
-  it('shows loading spinner initially', () => {
-    mockLoadImage.mockReturnValue(new Promise(() => {})); // Never resolves
-
+  it('renders an img element with the correct thumbnail URL', () => {
     render(
       <PhotoViewer
-        fileName="test.jpg"
-        fileHandle={{ name: 'test.jpg' } as FileSystemFileHandle}
+        folderName="TestFolder-abc12345"
+        photoName="photo.jpg"
         aspectRatio={0.75}
         rotation={0}
-        allFileHandles={[]}
-        currentIndex={0}
       />
     );
 
-    // Should have the spinner (animated spin element)
-    const spinner = document.querySelector('.animate-spin');
-    expect(spinner).toBeInTheDocument();
+    const img = screen.getByRole('img');
+    expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute('src', '/api/folder/TestFolder-abc12345/photos/photo.jpg');
+    expect(img).toHaveAttribute('alt', 'photo.jpg');
   });
 
-  it('displays image when loaded', async () => {
-    const blobUrl = 'blob:test';
-    mockLoadImage.mockResolvedValue(blobUrl);
-
+  it('encodes special characters in folder and photo names', () => {
     render(
       <PhotoViewer
-        fileName="photo.jpg"
-        fileHandle={{ name: 'photo.jpg' } as FileSystemFileHandle}
+        folderName="My Folder"
+        photoName="photo (1).jpg"
         aspectRatio={0.75}
         rotation={0}
-        allFileHandles={[]}
-        currentIndex={0}
       />
     );
 
-    await waitFor(() => {
-      const img = screen.getByRole('img');
-      expect(img).toBeInTheDocument();
-      expect(img).toHaveAttribute('src', blobUrl);
-    });
+    const img = screen.getByRole('img');
+    expect(img).toHaveAttribute('src', '/api/folder/My%20Folder/photos/photo%20(1).jpg');
   });
 
-  it('shows error placeholder when file handle is null', async () => {
+  it('applies rotation transform', () => {
     render(
       <PhotoViewer
-        fileName="missing.jpg"
-        fileHandle={null}
-        aspectRatio={0.75}
-        rotation={0}
-        allFileHandles={[]}
-        currentIndex={0}
-      />
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText('Failed to load image')).toBeInTheDocument();
-      expect(screen.getByText('missing.jpg')).toBeInTheDocument();
-    });
-  });
-
-  it('shows error when image fails to load', async () => {
-    mockLoadImage.mockRejectedValue(new Error('Failed'));
-
-    render(
-      <PhotoViewer
-        fileName="broken.jpg"
-        fileHandle={{ name: 'broken.jpg' } as FileSystemFileHandle}
-        aspectRatio={0.75}
-        rotation={0}
-        allFileHandles={[]}
-        currentIndex={0}
-      />
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText('Failed to load image')).toBeInTheDocument();
-      expect(screen.getByText('broken.jpg')).toBeInTheDocument();
-    });
-  });
-
-  it('uses cached image when available', async () => {
-    imageCache.set('cached.jpg', 'blob:cached');
-
-    render(
-      <PhotoViewer
-        fileName="cached.jpg"
-        fileHandle={{ name: 'cached.jpg' } as FileSystemFileHandle}
-        aspectRatio={0.75}
-        rotation={0}
-        allFileHandles={[]}
-        currentIndex={0}
-      />
-    );
-
-    await waitFor(() => {
-      const img = screen.getByRole('img');
-      expect(img).toBeInTheDocument();
-      expect(img).toHaveAttribute('src', 'blob:cached');
-    });
-
-    expect(mockLoadImage).not.toHaveBeenCalled();
-  });
-
-  it('applies rotation transform', async () => {
-    mockLoadImage.mockResolvedValue('blob:rotated');
-
-    render(
-      <PhotoViewer
-        fileName="rotated.jpg"
-        fileHandle={{ name: 'rotated.jpg' } as FileSystemFileHandle}
+        folderName="TestFolder-abc12345"
+        photoName="rotated.jpg"
         aspectRatio={0.75}
         rotation={90}
-        allFileHandles={[]}
-        currentIndex={0}
       />
     );
 
-    await waitFor(() => {
-      const img = screen.getByRole('img');
-      expect(img).toBeInTheDocument();
-      expect(img).toHaveStyle({ transform: 'rotate(90deg)' });
-    });
+    const img = screen.getByRole('img');
+    expect(img).toHaveStyle({ transform: 'rotate(90deg)' });
   });
 
-  it('calls preloadImages for next 3 photos', async () => {
-    mockLoadImage.mockResolvedValue('blob:preload');
-    const handles = [
-      { name: 'a.jpg' },
-      { name: 'b.jpg' },
-      { name: 'c.jpg' },
-      { name: 'd.jpg' },
-    ] as unknown as FileSystemFileHandle[];
-
+  it('applies aspect ratio to the container', () => {
     render(
       <PhotoViewer
-        fileName="a.jpg"
-        fileHandle={handles[0]}
-        aspectRatio={0.75}
+        folderName="TestFolder-abc12345"
+        photoName="photo.jpg"
+        aspectRatio={4 / 3}
         rotation={0}
-        allFileHandles={handles}
-        currentIndex={0}
       />
     );
 
-    await waitFor(() => {
-      expect(preloadImages).toHaveBeenCalledWith(handles, 1, 3);
-    });
+    const container = screen.getByRole('img').closest('[style*="aspect-ratio"]');
+    expect(container).toBeInTheDocument();
+    expect(container).toHaveStyle({ aspectRatio: String(4 / 3) });
+  });
+
+  it('does not use blob URLs', () => {
+    render(
+      <PhotoViewer
+        folderName="TestFolder-abc12345"
+        photoName="photo.jpg"
+        aspectRatio={0.75}
+        rotation={0}
+      />
+    );
+
+    const img = screen.getByRole('img');
+    expect(img.getAttribute('src')).not.toContain('blob:');
+  });
+
+  it('uses no preload or prefetch mechanism', () => {
+    const { container } = render(
+      <PhotoViewer
+        folderName="TestFolder-abc12345"
+        photoName="photo.jpg"
+        aspectRatio={0.75}
+        rotation={0}
+      />
+    );
+
+    // No link rel=preload or prefetch elements
+    const links = container.querySelectorAll('link[rel="preload"], link[rel="prefetch"]');
+    expect(links).toHaveLength(0);
   });
 });
