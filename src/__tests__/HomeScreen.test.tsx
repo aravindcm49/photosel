@@ -11,14 +11,6 @@ vi.mock('../lib/db', () => ({
   getProject: vi.fn(),
 }));
 
-// Mock file-system module (still used for resume flow)
-vi.mock('../lib/file-system', () => ({
-  getDirectoryHandle: vi.fn(),
-  getImageFilesFromDirectory: vi.fn(),
-  analyzeAspectRatio: vi.fn(),
-  getSupportedExtensions: vi.fn(() => ['.jpg', '.jpeg', '.png', '.webp', '.gif']),
-}));
-
 // Mock image-utils
 vi.mock('../lib/image-utils', () => ({
   createDefaultPhotoData: vi.fn(() => ({
@@ -46,7 +38,6 @@ const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 import { getAllProjects, deleteProject, getProject, saveProject } from '../lib/db';
-import { getDirectoryHandle } from '../lib/file-system';
 import { countReviewed } from '../lib/image-utils';
 import { toast } from 'sonner';
 
@@ -56,7 +47,6 @@ const mockGetAllProjects = vi.mocked(getAllProjects);
 const mockDeleteProject = vi.mocked(deleteProject);
 const mockGetProject = vi.mocked(getProject);
 const mockSaveProject = vi.mocked(saveProject);
-const mockGetDirectoryHandle = vi.mocked(getDirectoryHandle);
 const mockCountReviewed = vi.mocked(countReviewed);
 
 describe('HomeScreen', () => {
@@ -251,6 +241,7 @@ describe('HomeScreen', () => {
     const user = userEvent.setup();
     const project = {
       folderName: 'Wedding2023',
+      folderPath: '/home/user/wedding2023',
       totalPhotos: 10,
       reviewedCount: 5,
       createdAt: Date.now(),
@@ -260,7 +251,14 @@ describe('HomeScreen', () => {
     mockCountReviewed.mockReturnValue(5);
     mockGetAllProjects.mockResolvedValue([project]);
     mockGetProject.mockResolvedValue(project);
-    mockGetDirectoryHandle.mockResolvedValue({ name: 'Wedding2023' } as FileSystemDirectoryHandle);
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        folderName: 'Wedding2023',
+        images: [{ name: 'photo1.jpg', width: 4000, height: 3000, size: 5000000 }],
+        aspectRatio: 4 / 3,
+      }),
+    });
 
     render(
       <HomeScreen
@@ -278,8 +276,7 @@ describe('HomeScreen', () => {
 
     await waitFor(() => {
       expect(mockOnResumeProject).toHaveBeenCalledWith(
-        expect.objectContaining({ folderName: 'Wedding2023' }),
-        expect.anything()
+        expect.objectContaining({ folderName: 'Wedding2023' })
       );
     });
   });

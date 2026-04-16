@@ -16,6 +16,10 @@ vi.mock('../lib/file-system', () => ({
   getSupportedExtensions: vi.fn(() => ['.jpg', '.jpeg', '.png', '.webp', '.gif']),
 }));
 
+// Mock fetch for API calls
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
+
 import App from '../App';
 
 describe('App', () => {

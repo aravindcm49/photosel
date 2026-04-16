@@ -5,7 +5,7 @@ import { FolderCard } from '@/components/FolderCard';
 import { FolderOpen } from 'lucide-react';
 import { getAllProjects, deleteProject, saveProject, getProject } from '@/lib/db';
 import { createDefaultPhotoData, countReviewed } from '@/lib/image-utils';
-import { getDirectoryHandle } from '@/lib/file-system';
+
 import type { Project } from '@/types';
 import { toast } from 'sonner';
 
@@ -17,7 +17,7 @@ interface FolderApiResponse {
 
 interface HomeScreenProps {
   onOpenProject: (project: Project) => void;
-  onResumeProject: (project: Project, dirHandle: FileSystemDirectoryHandle) => void;
+  onResumeProject: (project: Project) => void;
 }
 
 export function HomeScreen({ onOpenProject, onResumeProject }: HomeScreenProps) {
@@ -69,13 +69,14 @@ export function HomeScreen({ onOpenProject, onResumeProject }: HomeScreenProps) 
 
       const project: Project = {
         folderName: apiResult.folderName,
+        folderPath: trimmed,
         totalPhotos: apiResult.images.length,
         reviewedCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         photos,
         aspectRatio: apiResult.aspectRatio,
-      };
+ };
 
       await saveProject(project);
       await loadProjects();
@@ -103,22 +104,33 @@ export function HomeScreen({ onOpenProject, onResumeProject }: HomeScreenProps) 
 
   const handleResume = useCallback(
     async (project: Project) => {
+      if (!project.folderPath) {
+        toast.error('No folder path stored for this project. Please enter the folder path below.');
+        return;
+      }
+
       try {
-        const dirHandle = await getDirectoryHandle();
-        if (!dirHandle) {
-          toast.error('Permission required to access folder. Please select the folder again.');
+        const res = await fetch('/api/folder', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: project.folderPath }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          toast.error(data.error || 'Folder path is no longer valid. Please enter the folder path below.');
           return;
         }
 
         const latestProject = await getProject(project.folderName);
         if (latestProject) {
-          onResumeProject(latestProject, dirHandle);
+          onResumeProject(latestProject);
         } else {
           toast.error('Project not found in database.');
         }
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : 'Failed to resume project. Permission may have been denied.';
+          err instanceof Error ? err.message : 'Failed to connect to server.';
         toast.error(message);
       }
     },
