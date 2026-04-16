@@ -1,6 +1,6 @@
 import express from 'express';
 import { existsSync } from 'fs';
-import { resolve, join, extname } from 'path';
+import { resolve, join, extname, basename } from 'path';
 import { scanImageMetadata } from './image-metadata-reader.js';
 import { getOrCreateThumbnail } from './thumbnail-cache.js';
 import * as folderRegistry from './folder-registry.js';
@@ -37,9 +37,11 @@ export function createApp() {
       }
 
       const folderName = folderRegistry.register(absolutePath);
+      const displayName = basename(absolutePath);
 
       res.json({
         folderName,
+        displayName,
         images: result.images,
         aspectRatio: result.aspectRatio,
       });

@@ -14,7 +14,7 @@ export function FolderCard({ project, onResume, onDelete }: FolderCardProps) {
     <Card className="w-full">
       <CardContent className="flex items-center justify-between p-4">
         <div className="flex flex-col gap-1">
-          <span className="font-semibold">{project.folderName}</span>
+          <span className="font-semibold">{project.displayName || project.folderName}</span>
           <span className="text-sm text-muted-foreground">
             {project.reviewedCount}/{project.totalPhotos} reviewed
           </span>

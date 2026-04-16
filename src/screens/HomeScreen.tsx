@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 
 interface FolderApiResponse {
   folderName: string;
+  displayName: string;
   images: Array<{ name: string; width: number; height: number; size: number }>;
   aspectRatio: number;
 }
@@ -69,6 +70,7 @@ export function HomeScreen({ onOpenProject, onResumeProject }: HomeScreenProps) 
 
       const project: Project = {
         folderName: apiResult.folderName,
+        displayName: apiResult.displayName,
         folderPath: trimmed,
         totalPhotos: apiResult.images.length,
         reviewedCount: 0,

@@ -10,6 +10,7 @@ export interface PhotoData {
 
 export interface Project {
   folderName: string;
+  displayName?: string;
   folderPath?: string;
   totalPhotos: number;
   reviewedCount: number;

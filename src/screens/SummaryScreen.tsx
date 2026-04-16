@@ -39,7 +39,7 @@ export function SummaryScreen({ project, onBackToHome }: SummaryScreenProps) {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 p-6">
-      <h1 className="text-3xl font-bold">{project.folderName}</h1>
+      <h1 className="text-3xl font-bold">{project.displayName || project.folderName}</h1>
       <h2 className="text-xl font-medium">Review Complete!</h2>
 
       <div className="flex gap-8">
