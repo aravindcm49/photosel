@@ -24,7 +24,7 @@ export function generateSelectedWithTagsContent(project: Project): string {
   return selected
     .map((p) => {
       if (p.people.length > 0) {
-        return `${p.filename}: ${p.people.join(', ')}`;
+        return `${p.filename} - ${p.people.join(', ')}`;
       }
       return p.filename;
     })

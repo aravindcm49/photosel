@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   generateSelectedContent,
+  generateSelectedWithTagsContent,
   generateSkippedContent,
 } from '../lib/export';
 import type { Project } from '../types';
@@ -52,5 +53,18 @@ describe('export', () => {
     };
     expect(generateSkippedContent(allSelected)).toBe('');
     expect(generateSelectedContent(allSelected)).toBe('a.jpg\nb.jpg');
+  });
+
+  it('generates Selected-with-people.txt with dash-separated tags', () => {
+    const withTags: Project = {
+      ...mockProject,
+      photos: {
+        'a.jpg': { filename: 'a.jpg', status: 'selected', people: ['Alice', 'Bob'], timestamp: Date.now(), rotation: 0 },
+        'b.jpg': { filename: 'b.jpg', status: 'selected', people: [], timestamp: Date.now(), rotation: 0 },
+        'c.jpg': { filename: 'c.jpg', status: 'selected', people: ['Charlie'], timestamp: Date.now(), rotation: 0 },
+      },
+    };
+    const content = generateSelectedWithTagsContent(withTags);
+    expect(content).toBe('a.jpg - Alice, Bob\nb.jpg\nc.jpg - Charlie');
   });
 });

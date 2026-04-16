@@ -115,7 +115,7 @@ describe('useKeyboardShortcuts', () => {
     expect(result.current.project.photos['a.jpg'].status).toBe('selected');
   });
 
-  it('rotates photo on R key', () => {
+  it('rotates photo right on Ctrl+K', () => {
     const { result } = renderHook(
       () => {
         useKeyboardShortcuts({ isInputFocused: false });
@@ -125,13 +125,103 @@ describe('useKeyboardShortcuts', () => {
     );
 
     act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
     });
 
     expect(result.current.currentPhoto?.rotation).toBe(90);
   });
 
-  it('does not process non-navigation shortcuts when input is focused', () => {
+  it('does not rotate on K without Ctrl', () => {
+    const { result } = renderHook(
+      () => {
+        useKeyboardShortcuts({ isInputFocused: false });
+        return useProject();
+      },
+      { wrapper }
+    );
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k' }));
+    });
+
+    expect(result.current.currentPhoto?.rotation).toBe(0);
+  });
+
+  it('rotates photo left on Ctrl+J', () => {
+    const { result } = renderHook(
+      () => {
+        useKeyboardShortcuts({ isInputFocused: false });
+        return useProject();
+      },
+      { wrapper }
+    );
+
+    // Set rotation to 90 first
+    act(() => {
+      result.current.rotateRight();
+    });
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'j', ctrlKey: true }));
+    });
+
+    expect(result.current.currentPhoto?.rotation).toBe(0);
+  });
+
+  it('does not rotate on J without Ctrl', () => {
+    const { result } = renderHook(
+      () => {
+        useKeyboardShortcuts({ isInputFocused: false });
+        return useProject();
+      },
+      { wrapper }
+    );
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'j' }));
+    });
+
+    expect(result.current.currentPhoto?.rotation).toBe(0);
+  });
+
+  it('navigates to next photo on L key', () => {
+    const { result } = renderHook(
+      () => {
+        useKeyboardShortcuts({ isInputFocused: false });
+        return useProject();
+      },
+      { wrapper }
+    );
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'l' }));
+    });
+
+    expect(result.current.currentIndex).toBe(1);
+  });
+
+  it('navigates to previous photo on H key', () => {
+    const { result } = renderHook(
+      () => {
+        useKeyboardShortcuts({ isInputFocused: false });
+        return useProject();
+      },
+      { wrapper }
+    );
+
+    // Go to index 1 first
+    act(() => {
+      result.current.goToNext();
+    });
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' }));
+    });
+
+    expect(result.current.currentIndex).toBe(0);
+  });
+
+  it('ignores all shortcuts when input is focused', () => {
     const { result } = renderHook(
       () => {
         useKeyboardShortcuts({ isInputFocused: true });
@@ -140,12 +230,34 @@ describe('useKeyboardShortcuts', () => {
       { wrapper }
     );
 
+    // S should be ignored
     act(() => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }));
     });
-
-    // Should not have advanced or marked photo
     expect(result.current.currentIndex).toBe(0);
     expect(result.current.project.photos['a.jpg'].status).toBeNull();
+
+    // H/L should be ignored
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'l' }));
+    });
+    expect(result.current.currentIndex).toBe(0);
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' }));
+    });
+    expect(result.current.currentIndex).toBe(0);
+
+    // Ctrl+K rotation should be ignored
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+    });
+    expect(result.current.currentPhoto?.rotation).toBe(0);
+
+    // Arrow keys should be ignored
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+    });
+    expect(result.current.currentIndex).toBe(0);
   });
 });

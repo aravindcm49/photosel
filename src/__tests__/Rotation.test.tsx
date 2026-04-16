@@ -82,4 +82,40 @@ describe('Photo Rotation', () => {
     expect(result.current.currentPhoto?.rotation).toBe(90);
     // The actual CSS transform is handled in PhotoViewer component
   });
+
+  it('rotateRight cycles clockwise through 0/90/180/270/0', () => {
+    const { result } = renderHook(() => useProject(), { wrapper });
+
+    expect(result.current.currentPhoto?.rotation).toBe(0);
+
+    act(() => result.current.rotateRight());
+    expect(result.current.currentPhoto?.rotation).toBe(90);
+
+    act(() => result.current.rotateRight());
+    expect(result.current.currentPhoto?.rotation).toBe(180);
+
+    act(() => result.current.rotateRight());
+    expect(result.current.currentPhoto?.rotation).toBe(270);
+
+    act(() => result.current.rotateRight());
+    expect(result.current.currentPhoto?.rotation).toBe(0);
+  });
+
+  it('rotateLeft cycles counter-clockwise through 0/270/180/90/0', () => {
+    const { result } = renderHook(() => useProject(), { wrapper });
+
+    expect(result.current.currentPhoto?.rotation).toBe(0);
+
+    act(() => result.current.rotateLeft());
+    expect(result.current.currentPhoto?.rotation).toBe(270);
+
+    act(() => result.current.rotateLeft());
+    expect(result.current.currentPhoto?.rotation).toBe(180);
+
+    act(() => result.current.rotateLeft());
+    expect(result.current.currentPhoto?.rotation).toBe(90);
+
+    act(() => result.current.rotateLeft());
+    expect(result.current.currentPhoto?.rotation).toBe(0);
+  });
 });
