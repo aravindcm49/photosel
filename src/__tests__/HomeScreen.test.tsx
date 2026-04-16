@@ -237,6 +237,114 @@ describe('HomeScreen', () => {
     expect(mockOnOpenProject).not.toHaveBeenCalled();
   });
 
+  it('shows error when resume fails due to invalid stored folderPath', async () => {
+    const user = userEvent.setup();
+    const project = {
+      folderName: 'Wedding2023',
+      folderPath: '/home/user/moved-folder',
+      totalPhotos: 10,
+      reviewedCount: 5,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      photos: {},
+    };
+    mockCountReviewed.mockReturnValue(5);
+    mockGetAllProjects.mockResolvedValue([project]);
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: 'Path does not exist: /home/user/moved-folder' }),
+    });
+
+    render(
+      <HomeScreen
+        onOpenProject={mockOnOpenProject}
+        onResumeProject={mockOnResumeProject}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Wedding2023')).toBeInTheDocument();
+    });
+
+    const resumeButton = screen.getByLabelText('Resume Wedding2023');
+    await user.click(resumeButton);
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith('Path does not exist: /home/user/moved-folder');
+    });
+    expect(mockOnResumeProject).not.toHaveBeenCalled();
+    expect(screen.getByPlaceholderText('/path/to/photos')).toBeInTheDocument();
+  });
+
+  it('shows error when resuming project without stored folderPath', async () => {
+    const user = userEvent.setup();
+    const project = {
+      folderName: 'OldProject',
+      totalPhotos: 10,
+      reviewedCount: 5,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      photos: {},
+    };
+    mockCountReviewed.mockReturnValue(5);
+    mockGetAllProjects.mockResolvedValue([project]);
+
+    render(
+      <HomeScreen
+        onOpenProject={mockOnOpenProject}
+        onResumeProject={mockOnResumeProject}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('OldProject')).toBeInTheDocument();
+    });
+
+    const resumeButton = screen.getByLabelText('Resume OldProject');
+    await user.click(resumeButton);
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith('No folder path stored for this project. Please enter the folder path below.');
+    });
+    expect(mockOnResumeProject).not.toHaveBeenCalled();
+    expect(screen.getByPlaceholderText('/path/to/photos')).toBeInTheDocument();
+  });
+
+  it('saves folderPath in project when opening a new folder', async () => {
+    const user = userEvent.setup();
+    mockSaveProject.mockResolvedValue(undefined);
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        folderName: 'MyPhotos',
+        images: [{ name: 'photo1.jpg', width: 4000, height: 3000, size: 5000000 }],
+        aspectRatio: 4 / 3,
+      }),
+    });
+
+    render(
+      <HomeScreen
+        onOpenProject={mockOnOpenProject}
+        onResumeProject={mockOnResumeProject}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('/path/to/photos')).toBeInTheDocument();
+    });
+
+    const input = screen.getByPlaceholderText('/path/to/photos');
+    await user.type(input, '/home/user/myphotos');
+    await user.click(screen.getByText('Open'));
+
+    await waitFor(() => {
+      expect(mockSaveProject).toHaveBeenCalledWith(
+        expect.objectContaining({ folderPath: '/home/user/myphotos' })
+      );
+    });
+  });
+
   it('calls onResumeProject when resume button is clicked', async () => {
     const user = userEvent.setup();
     const project = {
