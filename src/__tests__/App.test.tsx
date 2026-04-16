@@ -9,13 +9,6 @@ vi.mock('../lib/db', () => ({
   getProject: vi.fn(),
 }));
 
-vi.mock('../lib/file-system', () => ({
-  getDirectoryHandle: vi.fn(),
-  getImageFilesFromDirectory: vi.fn(),
-  analyzeAspectRatio: vi.fn(),
-  getSupportedExtensions: vi.fn(() => ['.jpg', '.jpeg', '.png', '.webp', '.gif']),
-}));
-
 // Mock fetch for API calls
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
