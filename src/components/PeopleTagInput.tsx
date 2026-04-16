@@ -7,6 +7,7 @@ export interface PeopleTagInputRef {
   hasUncommitted: () => boolean;
   clear: () => void;
   focus: () => void;
+  commitTags: () => void;
 }
 
 interface PeopleTagInputProps {
@@ -59,6 +60,11 @@ export const PeopleTagInput = forwardRef<PeopleTagInputRef, PeopleTagInputProps>
     },
     focus: () => {
       chipInputRef.current?.focus();
+    },
+    commitTags: () => {
+      if (currentPhoto) {
+        commitPeople(localChips);
+      }
     },
   }));
 
