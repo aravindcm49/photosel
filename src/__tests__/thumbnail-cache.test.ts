@@ -91,4 +91,24 @@ describe('Thumbnail Cache', () => {
 
     await expect(getOrCreateThumbnail(sourcePath)).rejects.toThrow('Unsupported image format');
   });
+
+  it('creates cache directory if missing', async () => {
+    const { homedir } = await import('os');
+    const { existsSync } = await import('fs');
+    const { join } = await import('path');
+    const cacheDir = join(homedir(), '.photo-selector', 'thumbnails');
+
+    // Remove cache directory if it exists
+    const { rm } = await import('fs/promises');
+    await rm(cacheDir, { recursive: true, force: true });
+    expect(existsSync(cacheDir)).toBe(false);
+
+    // Generate a thumbnail - this should create the cache directory
+    const sourcePath = join(testDir, 'photo.jpg');
+    await writeFile(sourcePath, 'fake-image-data');
+
+    await getOrCreateThumbnail(sourcePath, 1200);
+
+    expect(existsSync(cacheDir)).toBe(true);
+  });
 });

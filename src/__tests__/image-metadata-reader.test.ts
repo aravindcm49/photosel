@@ -126,6 +126,32 @@ describe('Image Metadata Reader', () => {
     expect(result.aspectRatio).toBe(1);
   });
 
+  it('computes aspect ratio for mixed folder (portrait, landscape, square)', async () => {
+    // 3 portrait, 2 landscape, 1 square
+    const dims = [
+      { width: 3000, height: 4000 },
+      { width: 2000, height: 3000 },
+      { width: 1500, height: 2000 },
+      { width: 4000, height: 3000 },
+      { width: 6000, height: 4000 },
+      { width: 1000, height: 1000 },
+    ];
+    for (let i = 0; i < 6; i++) {
+      await writeFile(join(testDir, `photo${i}.jpg`), 'image');
+    }
+
+    let callIdx = 0;
+    mockSharp.mockImplementation((() => {
+      const d = dims[callIdx++];
+      return { metadata: vi.fn().mockResolvedValue(d) };
+    }) as unknown as typeof sharp);
+
+    const result = await scanImageMetadata(testDir);
+
+    // 3 portrait > 2 landscape > 1 square → portrait majority
+    expect(result.aspectRatio).toBe(3 / 4);
+  });
+
   it('sorts images alphabetically', async () => {
     await writeFile(join(testDir, 'zebra.jpg'), 'image');
     await writeFile(join(testDir, 'alpha.jpg'), 'image');
