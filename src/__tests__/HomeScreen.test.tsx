@@ -11,7 +11,7 @@ vi.mock('../lib/db', () => ({
   getProject: vi.fn(),
 }));
 
-// Mock file-system module
+// Mock file-system module (still used for resume flow)
 vi.mock('../lib/file-system', () => ({
   getDirectoryHandle: vi.fn(),
   getImageFilesFromDirectory: vi.fn(),
@@ -41,8 +41,12 @@ vi.mock('sonner', () => ({
   },
 }));
 
-import { getAllProjects, deleteProject, getProject } from '../lib/db';
-import { getDirectoryHandle, getImageFilesFromDirectory, analyzeAspectRatio } from '../lib/file-system';
+// Mock fetch globally
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
+
+import { getAllProjects, deleteProject, getProject, saveProject } from '../lib/db';
+import { getDirectoryHandle } from '../lib/file-system';
 import { countReviewed } from '../lib/image-utils';
 import { toast } from 'sonner';
 
@@ -51,9 +55,8 @@ const mockToastError = vi.mocked(toast.error);
 const mockGetAllProjects = vi.mocked(getAllProjects);
 const mockDeleteProject = vi.mocked(deleteProject);
 const mockGetProject = vi.mocked(getProject);
+const mockSaveProject = vi.mocked(saveProject);
 const mockGetDirectoryHandle = vi.mocked(getDirectoryHandle);
-const mockGetImageFilesFromDirectory = vi.mocked(getImageFilesFromDirectory);
-const mockAnalyzeAspectRatio = vi.mocked(analyzeAspectRatio);
 const mockCountReviewed = vi.mocked(countReviewed);
 
 describe('HomeScreen', () => {
@@ -65,7 +68,7 @@ describe('HomeScreen', () => {
     mockGetAllProjects.mockResolvedValue([]);
   });
 
-  it('shows empty state when no projects exist', async () => {
+  it('shows empty state with text input when no projects exist', async () => {
     render(
       <HomeScreen
         onOpenProject={mockOnOpenProject}
@@ -76,7 +79,8 @@ describe('HomeScreen', () => {
     await waitFor(() => {
       expect(screen.getByText('No projects yet')).toBeInTheDocument();
     });
-    expect(screen.getByText('Open Folder')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('/path/to/photos')).toBeInTheDocument();
+    expect(screen.getByText('Open')).toBeInTheDocument();
   });
 
   it('renders project cards from IndexedDB', async () => {
@@ -139,14 +143,19 @@ describe('HomeScreen', () => {
     expect(mockDeleteProject).toHaveBeenCalledWith('Wedding2023');
   });
 
-  it('calls onOpenProject when folder with images is selected', async () => {
+  it('calls onOpenProject when valid folder path is submitted', async () => {
     const user = userEvent.setup();
-    const mockDirHandle = { name: 'TestFolder' } as FileSystemDirectoryHandle;
-    mockGetDirectoryHandle.mockResolvedValue(mockDirHandle);
-    mockGetImageFilesFromDirectory.mockResolvedValue([
-      { name: 'photo1.jpg', kind: 'file' } as unknown as FileSystemFileHandle,
-    ]);
-    mockAnalyzeAspectRatio.mockResolvedValue(0.75);
+    mockSaveProject.mockResolvedValue(undefined);
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        folderName: 'TestFolder-abc12345',
+        images: [
+          { name: 'photo1.jpg', width: 4000, height: 3000, size: 5000000 },
+        ],
+        aspectRatio: 4 / 3,
+      }),
+    });
 
     render(
       <HomeScreen
@@ -155,24 +164,67 @@ describe('HomeScreen', () => {
       />
     );
 
-    // Wait for empty state to render
     await waitFor(() => {
-      expect(screen.getByText('No projects yet')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('/path/to/photos')).toBeInTheDocument();
     });
 
-    const openButton = screen.getByText('Open Folder');
-    await user.click(openButton);
+    const input = screen.getByPlaceholderText('/path/to/photos');
+    await user.type(input, '/home/user/photos');
+    await user.click(screen.getByText('Open'));
 
     await waitFor(() => {
-      expect(mockOnOpenProject).toHaveBeenCalled();
+      expect(mockFetch).toHaveBeenCalledWith('/api/folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: '/home/user/photos' }),
+      });
     });
+    expect(mockSaveProject).toHaveBeenCalled();
+    expect(mockOnOpenProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        folderName: 'TestFolder-abc12345',
+        totalPhotos: 1,
+        aspectRatio: 4 / 3,
+      })
+    );
+  });
+
+  it('shows error when path does not exist', async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: 'Path does not exist: /bad/path' }),
+    });
+
+    render(
+      <HomeScreen
+        onOpenProject={mockOnOpenProject}
+        onResumeProject={mockOnResumeProject}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('/path/to/photos')).toBeInTheDocument();
+    });
+
+    const input = screen.getByPlaceholderText('/path/to/photos');
+    await user.type(input, '/bad/path');
+    await user.click(screen.getByText('Open'));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith('Path does not exist: /bad/path');
+    });
+    expect(mockOnOpenProject).not.toHaveBeenCalled();
   });
 
   it('shows error when no supported images in folder', async () => {
     const user = userEvent.setup();
-    const mockDirHandle = { name: 'EmptyFolder' } as FileSystemDirectoryHandle;
-    mockGetDirectoryHandle.mockResolvedValue(mockDirHandle);
-    mockGetImageFilesFromDirectory.mockResolvedValue([]);
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      json: async () => ({ error: 'No supported images found in the specified folder' }),
+    });
 
     render(
       <HomeScreen
@@ -181,18 +233,16 @@ describe('HomeScreen', () => {
       />
     );
 
-    // Wait for empty state to render
     await waitFor(() => {
-      expect(screen.getByText('No projects yet')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('/path/to/photos')).toBeInTheDocument();
     });
 
-    const openButton = screen.getByText('Open Folder');
-    await user.click(openButton);
+    const input = screen.getByPlaceholderText('/path/to/photos');
+    await user.type(input, '/home/user/empty');
+    await user.click(screen.getByText('Open'));
 
     await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith(
-        expect.stringContaining('No supported images found')
-      );
+      expect(mockToastError).toHaveBeenCalledWith('No supported images found in the specified folder');
     });
     expect(mockOnOpenProject).not.toHaveBeenCalled();
   });

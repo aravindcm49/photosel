@@ -1,27 +1,30 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { FolderCard } from '@/components/FolderCard';
 import { FolderOpen } from 'lucide-react';
 import { getAllProjects, deleteProject, saveProject, getProject } from '@/lib/db';
-import {
-  getDirectoryHandle,
-  getImageFilesFromDirectory,
-  analyzeAspectRatio,
-  getSupportedExtensions,
-} from '@/lib/file-system';
 import { createDefaultPhotoData, countReviewed } from '@/lib/image-utils';
+import { getDirectoryHandle } from '@/lib/file-system';
 import type { Project } from '@/types';
 import { toast } from 'sonner';
 
+interface FolderApiResponse {
+  folderName: string;
+  images: Array<{ name: string; width: number; height: number; size: number }>;
+  aspectRatio: number;
+}
+
 interface HomeScreenProps {
-  onOpenProject: (project: Project, dirHandle: FileSystemDirectoryHandle) => void;
+  onOpenProject: (project: Project) => void;
   onResumeProject: (project: Project, dirHandle: FileSystemDirectoryHandle) => void;
 }
 
 export function HomeScreen({ onOpenProject, onResumeProject }: HomeScreenProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [opening, setOpening] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [folderPath, setFolderPath] = useState('');
 
   const loadProjects = useCallback(async () => {
     try {
@@ -38,53 +41,52 @@ export function HomeScreen({ onOpenProject, onResumeProject }: HomeScreenProps) 
     loadProjects();
   }, [loadProjects]);
 
-  const handleOpenFolder = useCallback(async () => {
-    setOpening(true);
+  const handleSubmitPath = useCallback(async () => {
+    const trimmed = folderPath.trim();
+    if (!trimmed) return;
+
+    setSubmitting(true);
     try {
-      const dirHandle = await getDirectoryHandle();
-      if (!dirHandle) {
-        setOpening(false);
+      const res = await fetch('/api/folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: trimmed }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to open folder');
         return;
       }
 
-      const imageFiles = await getImageFilesFromDirectory(dirHandle);
-      if (imageFiles.length === 0) {
-        toast.error(
-          `No supported images found. Supported formats: ${getSupportedExtensions().join(', ')}`
-        );
-        setOpening(false);
-        return;
-      }
-
-      const aspectRatio = await analyzeAspectRatio(dirHandle);
+      const apiResult = data as FolderApiResponse;
 
       const photos: Record<string, ReturnType<typeof createDefaultPhotoData>> = {};
-      for (const fileHandle of imageFiles) {
-        photos[fileHandle.name] = createDefaultPhotoData(fileHandle.name);
+      for (const img of apiResult.images) {
+        photos[img.name] = createDefaultPhotoData(img.name);
       }
 
       const project: Project = {
-        folderName: dirHandle.name,
-        totalPhotos: imageFiles.length,
+        folderName: apiResult.folderName,
+        totalPhotos: apiResult.images.length,
         reviewedCount: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         photos,
+        aspectRatio: apiResult.aspectRatio,
       };
-
-      (project as Project & { aspectRatio: number }).aspectRatio = aspectRatio;
 
       await saveProject(project);
       await loadProjects();
-      onOpenProject(project, dirHandle);
+      onOpenProject(project);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to open folder. Permission may have been denied.';
+      const message = err instanceof Error ? err.message : 'Failed to connect to server';
       toast.error(message);
     } finally {
-      setOpening(false);
+      setSubmitting(false);
     }
-  }, [onOpenProject, loadProjects]);
+  }, [folderPath, onOpenProject, loadProjects]);
 
   const handleDelete = useCallback(
     async (folderName: string) => {
@@ -108,12 +110,6 @@ export function HomeScreen({ onOpenProject, onResumeProject }: HomeScreenProps) 
           return;
         }
 
-        // Verify the folder name matches
-        if (dirHandle.name !== project.folderName) {
-          // Update the project with the new folder handle anyway - user may have renamed
-        }
-
-        // Reload project from IndexedDB to get latest state
         const latestProject = await getProject(project.folderName);
         if (latestProject) {
           onResumeProject(latestProject, dirHandle);
@@ -148,21 +144,46 @@ export function HomeScreen({ onOpenProject, onResumeProject }: HomeScreenProps) 
           </div>
           <h2 className="text-lg font-medium">No projects yet</h2>
           <p className="text-sm text-muted-foreground">
-            Open a folder of photos to start reviewing
+            Enter a folder path to start reviewing photos
           </p>
-          <Button onClick={handleOpenFolder} disabled={opening} size="lg">
-            <FolderOpen className="mr-2 h-5 w-5" />
-            {opening ? 'Opening...' : 'Open Folder'}
-          </Button>
+          <div className="flex w-full max-w-md gap-2">
+            <Input
+              type="text"
+              placeholder="/path/to/photos"
+              value={folderPath}
+              onChange={(e) => setFolderPath(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSubmitPath();
+              }}
+              disabled={submitting}
+            />
+            <Button onClick={handleSubmitPath} disabled={submitting || !folderPath.trim()}>
+              <FolderOpen className="mr-2 h-4 w-4" />
+              {submitting ? 'Opening...' : 'Open'}
+            </Button>
+          </div>
         </div>
       ) : (
         <>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-medium">Your Projects</h2>
-            <Button onClick={handleOpenFolder} disabled={opening}>
-              <FolderOpen className="mr-2 h-4 w-4" />
-              {opening ? 'Opening...' : 'Open Folder'}
-            </Button>
+            <div className="flex gap-2">
+              <Input
+                type="text"
+                placeholder="/path/to/photos"
+                value={folderPath}
+                onChange={(e) => setFolderPath(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSubmitPath();
+                }}
+                disabled={submitting}
+                className="w-64"
+              />
+              <Button onClick={handleSubmitPath} disabled={submitting || !folderPath.trim()}>
+                <FolderOpen className="mr-2 h-4 w-4" />
+                {submitting ? 'Opening...' : 'Open'}
+              </Button>
+            </div>
           </div>
           <div className="flex flex-col gap-3">
             {projects.map((project) => (

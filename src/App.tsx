@@ -13,9 +13,9 @@ function App() {
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [dirHandle, setDirHandle] = useState<FileSystemDirectoryHandle | null>(null);
 
-  const handleOpenProject = useCallback((project: Project, handle: FileSystemDirectoryHandle) => {
+  const handleOpenProject = useCallback((project: Project) => {
     setCurrentProject(project);
-    setDirHandle(handle);
+    setDirHandle(null);
     setScreen('review');
   }, []);
 

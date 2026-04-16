@@ -15,6 +15,7 @@ export interface Project {
   createdAt: number;
   updatedAt: number;
   photos: Record<string, PhotoData>;
+  aspectRatio?: number;
 }
 
 export interface GlobalPerson {

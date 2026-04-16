@@ -6,6 +6,7 @@ vi.mock('../lib/db', () => ({
   getAllProjects: vi.fn().mockResolvedValue([]),
   deleteProject: vi.fn(),
   saveProject: vi.fn(),
+  getProject: vi.fn(),
 }));
 
 vi.mock('../lib/file-system', () => ({
