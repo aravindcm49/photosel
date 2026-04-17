@@ -18,6 +18,8 @@ export interface Project {
   updatedAt: number;
   photos: Record<string, PhotoData>;
   aspectRatio?: number;
+  lastVisitedPhoto?: Record<'all' | 'selected' | 'skipped', string | null>;
+  lastActiveFilter?: 'all' | 'selected' | 'skipped';
 }
 
 export interface GlobalPerson {

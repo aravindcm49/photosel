@@ -3,13 +3,14 @@ import { PhotoViewer } from '@/components/PhotoViewer';
 import { ActionBar, type ActionBarRef } from '@/components/ActionBar';
 import { RotateButton } from '@/components/RotateButton';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { JumpToModal } from '@/components/JumpToModal';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { ArrowLeft, ChevronLeft, ChevronRight, Check, X, ClipboardList, Filter } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, X, ClipboardList, Filter } from 'lucide-react';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import type { Project } from '@/types';
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -20,11 +21,12 @@ interface PhotoReviewScreenProps {
   project: Project;
   onBack: () => void;
   onComplete: (project: Project) => void;
+  shouldResume?: boolean;
 }
 
-export function PhotoReviewScreen({ project, onBack, onComplete }: PhotoReviewScreenProps) {
+export function PhotoReviewScreen({ project, onBack, onComplete, shouldResume }: PhotoReviewScreenProps) {
   return (
-    <ProjectProvider initialProject={project}>
+    <ProjectProvider initialProject={project} shouldResume={shouldResume}>
       <PhotoReviewContent
         onBack={onBack}
         onComplete={onComplete}
@@ -33,20 +35,39 @@ export function PhotoReviewScreen({ project, onBack, onComplete }: PhotoReviewSc
   );
 }
 
-function StatusBadge({ status }: { status: 'selected' | 'skipped' | null }) {
+function StatusBadge({
+  status,
+  onClear,
+}: {
+  status: 'selected' | 'skipped' | null;
+  onClear?: () => void;
+}) {
+  const clearButton = onClear && (
+    <button
+      onClick={(e) => { e.stopPropagation(); onClear(); }}
+      className="ml-1 flex items-center justify-center rounded-full p-0.5 text-white/60 opacity-0 transition-opacity group-hover/status:opacity-100 hover:bg-black/20 hover:text-white"
+      aria-label="Clear photo status"
+      title="Clear status"
+    >
+      <X className="h-3 w-3" />
+    </button>
+  );
+
   if (status === 'selected') {
     return (
-      <div className="flex items-center gap-1 rounded-full bg-green-500/60 px-2 py-0.5 backdrop-blur-sm border border-green-400/50">
-        <Check className="h-3 w-3 text-green-200" />
-        <span className="text-xs font-medium text-green-100">Selected</span>
+      <div className="group/status pointer-events-auto flex items-center rounded-full bg-green-500/60 pl-2.5 pr-1.5 py-1 backdrop-blur-sm border border-green-400/50">
+        <span className="h-3 w-3 shrink-0" />
+        <span className="text-xs font-medium text-green-100 ml-1">Selected</span>
+        {clearButton}
       </div>
     );
   }
   if (status === 'skipped') {
     return (
-      <div className="flex items-center gap-1 rounded-full bg-red-500/60 px-2 py-0.5 backdrop-blur-sm border border-red-400/50">
-        <X className="h-3 w-3 text-red-200" />
-        <span className="text-xs font-medium text-red-100">Skipped</span>
+      <div className="group/status pointer-events-auto flex items-center rounded-full bg-red-500/60 pl-2.5 pr-1.5 py-1 backdrop-blur-sm border border-red-400/50">
+        <span className="h-3 w-3 shrink-0" />
+        <span className="text-xs font-medium text-red-100 ml-1">Skipped</span>
+        {clearButton}
       </div>
     );
   }
@@ -102,10 +123,14 @@ function FilterCombobox({ value, onChange }: { value: PhotoFilter; onChange: (va
   );
 }
 
-function FilteredPositionBadge({ currentIndex, filteredCount }: { currentIndex: number; filteredCount: number }) {
+function FilteredPositionBadge({ currentIndex, filteredCount, onClick }: { currentIndex: number; filteredCount: number; onClick?: () => void }) {
   if (filteredCount === 0) return null;
   return (
-    <span className="inline-flex items-center rounded-full bg-black/60 px-2.5 h-7 text-xs font-medium text-white/70 backdrop-blur-sm border border-white/10 cursor-default">
+    <span
+      className="inline-flex items-center rounded-full bg-black/60 px-2.5 h-7 text-xs font-medium text-white/70 backdrop-blur-sm border border-white/10 cursor-pointer hover:bg-black/70 hover:border-white/20 transition-colors"
+      onClick={onClick}
+      title="Jump to photo (G)"
+    >
       {currentIndex + 1} / {filteredCount}
     </span>
   );
@@ -130,6 +155,8 @@ function PhotoReviewContent({
     filteredPhotoNames,
     goToNext,
     goToPrevious,
+    goToIndex,
+    markPhoto,
     flushSave,
   } = useProject();
   const currentPhotoName = filteredPhotoNames[currentIndex] ?? '';
@@ -138,6 +165,7 @@ function PhotoReviewContent({
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<PendingNavigation>(null);
+  const [showJumpToModal, setShowJumpToModal] = useState(false);
 
   // Bottom bar visibility: hides on idle, shows on activity
   const [bottomBarVisible, setBottomBarVisible] = useState(true);
@@ -217,6 +245,24 @@ function PhotoReviewContent({
     onTagCommit: () => actionBarRef.current?.commitTags(),
   });
 
+  // Jump-to-N: G key opens modal (only when not in input)
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (isInputFocused) return;
+      if (e.key === 'g' || e.key === 'G') {
+        e.preventDefault();
+        setShowJumpToModal(true);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isInputFocused]);
+
+  const handleJump = useCallback((index: number) => {
+    goToIndex(index);
+    setShowJumpToModal(false);
+  }, [goToIndex]);
+
   const isFirst = currentIndex === 0;
   const isLast = currentIndex === filteredCount - 1;
 
@@ -258,10 +304,17 @@ function PhotoReviewContent({
           </Button>
           <StatsBadge selectedCount={selectedCount} skippedCount={skippedCount} />
           <FilterCombobox value={filter} onChange={setFilter} />
-          <FilteredPositionBadge currentIndex={currentIndex} filteredCount={filteredCount} />
+          <FilteredPositionBadge
+            currentIndex={currentIndex}
+            filteredCount={filteredCount}
+            onClick={() => filteredCount > 0 && setShowJumpToModal(true)}
+          />
         </div>
-        <div className="absolute inset-x-0 flex justify-center pointer-events-none">
-          <StatusBadge status={currentPhoto?.status ?? null} />
+        <div className="flex-1 flex justify-center pointer-events-none">
+          <StatusBadge
+            status={currentPhoto?.status ?? null}
+            onClear={() => markPhoto(null)}
+          />
         </div>
         <div className="flex items-center gap-2">
           <RotateButton />
@@ -322,6 +375,15 @@ function PhotoReviewContent({
           message="You have uncommitted tags. Discard?"
           onConfirm={handleConfirmDiscard}
           onCancel={handleCancelDiscard}
+        />
+      )}
+
+      {/* Jump-to-N modal */}
+      {showJumpToModal && (
+        <JumpToModal
+          maxIndex={filteredCount}
+          onJump={handleJump}
+          onClose={() => setShowJumpToModal(false)}
         />
       )}
     </div>

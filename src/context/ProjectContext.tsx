@@ -5,6 +5,8 @@ import { countReviewed } from '@/lib/image-utils';
 
 export type PhotoFilter = 'all' | 'selected' | 'skipped';
 
+export const FILTERS: PhotoFilter[] = ['all', 'selected', 'skipped'];
+
 interface ProjectContextType {
   project: Project;
   currentIndex: number;
@@ -27,6 +29,7 @@ interface ProjectContextType {
   tagPeople: (people: string[]) => void;
   goToNext: () => boolean;
   goToPrevious: () => void;
+  goToIndex: (index: number) => void;
   flushSave: () => Promise<void>;
 }
 
@@ -42,14 +45,31 @@ export function useProject() {
 
 interface ProjectProviderProps {
   initialProject: Project;
+  shouldResume?: boolean;
   children: React.ReactNode;
 }
 
-export function ProjectProvider({ initialProject, children }: ProjectProviderProps) {
-  const [project, setProject] = useState<Project>(initialProject);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [filter, setFilterState] = useState<PhotoFilter>('all');
+export function ProjectProvider({ initialProject, shouldResume, children }: ProjectProviderProps) {
+  // Normalize the project to always have lastVisitedPhoto and lastActiveFilter
+  const normalizedProject = useMemo(() => {
+    const defaults: Record<'all' | 'selected' | 'skipped', string | null> = {
+      all: null,
+      selected: null,
+      skipped: null,
+    };
+    return {
+      ...initialProject,
+      lastVisitedPhoto: { ...defaults, ...initialProject.lastVisitedPhoto },
+      lastActiveFilter: initialProject.lastActiveFilter ?? 'all',
+    };
+  }, [initialProject]);
+
+  const [project, setProject] = useState<Project>(normalizedProject);
+  const [filter, setFilterState] = useState<PhotoFilter>(
+    shouldResume ? normalizedProject.lastActiveFilter : 'all'
+  );
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastVisitedDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const photoNames = useMemo(() => Object.keys(project.photos).sort(), [project.photos]);
   const totalPhotos = photoNames.length;
@@ -61,11 +81,88 @@ export function ProjectProvider({ initialProject, children }: ProjectProviderPro
 
   const filteredCount = filteredPhotoNames.length;
 
-  // Reset to first photo when filter changes
+  // Compute initial index on first render when resuming
+  const getInitialIndex = useCallback((): number => {
+    if (!shouldResume) return 0;
+    const savedPhoto = normalizedProject.lastVisitedPhoto[normalizedProject.lastActiveFilter];
+    if (!savedPhoto) return 0;
+    const names = filter === 'all' ? photoNames : photoNames.filter(n => project.photos[n].status === filter);
+    const idx = names.indexOf(savedPhoto);
+    return idx >= 0 ? idx : 0;
+  }, [shouldResume, normalizedProject, filter, photoNames, project.photos]);
+
+  const [currentIndex, setCurrentIndex] = useState(getInitialIndex());
+
+  const persistProject = useCallback((updatedProject: Project) => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        await saveProject(updatedProject);
+      } catch {
+        // Silently fail - will be retried on next action
+      }
+    }, 500);
+  }, []);
+
+  // Debounced save of lastVisitedPhoto per filter (2s after last navigation)
+  const trackLastVisitedPhoto = useCallback(
+    (currentFilter: PhotoFilter, currentPhotoName: string | null) => {
+      if (!currentPhotoName) return;
+      if (lastVisitedDebounceRef.current) {
+        clearTimeout(lastVisitedDebounceRef.current);
+      }
+      lastVisitedDebounceRef.current = setTimeout(() => {
+        const photoName = currentPhotoName;
+        const f = currentFilter;
+        setProject((prev) => {
+          const updated = {
+            ...prev,
+            lastVisitedPhoto: {
+              all: prev.lastVisitedPhoto?.all ?? null,
+              selected: prev.lastVisitedPhoto?.selected ?? null,
+              skipped: prev.lastVisitedPhoto?.skipped ?? null,
+              [f]: photoName,
+            },
+            updatedAt: Date.now(),
+          };
+          return updated;
+        });
+        saveProject({
+          ...project,
+          lastVisitedPhoto: {
+            all: project.lastVisitedPhoto?.all ?? null,
+            selected: project.lastVisitedPhoto?.selected ?? null,
+            skipped: project.lastVisitedPhoto?.skipped ?? null,
+            [f]: photoName,
+          },
+        }).catch(() => {});
+      }, 2000);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  // Restore to last visited position when filter changes
   const setFilter = useCallback((newFilter: PhotoFilter) => {
     setFilterState(newFilter);
-    setCurrentIndex(0);
-  }, []);
+    setProject((prev) => {
+      const savedPhoto = prev.lastVisitedPhoto?.[newFilter];
+      const names = newFilter === 'all'
+        ? Object.keys(prev.photos).sort()
+        : Object.keys(prev.photos).sort().filter(n => prev.photos[n].status === newFilter);
+      const restoreIndex = savedPhoto && names.includes(savedPhoto) ? names.indexOf(savedPhoto) : 0;
+      setCurrentIndex(restoreIndex);
+      const updated = {
+        ...prev,
+        lastActiveFilter: newFilter,
+        updatedAt: Date.now(),
+      };
+      persistProject(updated);
+      return updated;
+    });
+  }, [persistProject]);
 
   // Clamp currentIndex when filtered list shrinks (e.g., photo status change removes it from filter)
   useEffect(() => {
@@ -82,23 +179,13 @@ export function ProjectProvider({ initialProject, children }: ProjectProviderPro
   const selectedCount = Object.values(project.photos).filter((p) => p.status === 'selected').length;
   const skippedCount = Object.values(project.photos).filter((p) => p.status === 'skipped').length;
 
-  const persistProject = useCallback((updatedProject: Project) => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-    debounceRef.current = setTimeout(async () => {
-      try {
-        await saveProject(updatedProject);
-      } catch {
-        // Silently fail - will be retried on next action
-      }
-    }, 500);
-  }, []);
-
   useEffect(() => {
     return () => {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
+      }
+      if (lastVisitedDebounceRef.current) {
+        clearTimeout(lastVisitedDebounceRef.current);
       }
     };
   }, []);
@@ -296,6 +383,18 @@ export function ProjectProvider({ initialProject, children }: ProjectProviderPro
     }
   }, [currentIndex]);
 
+  const goToIndex = useCallback((index: number) => {
+    if (index >= 0 && index < filteredCount) {
+      setCurrentIndex(index);
+    }
+  }, [filteredCount]);
+
+  // Track last visited photo on navigation (debounced)
+  useEffect(() => {
+    trackLastVisitedPhoto(filter, currentPhotoName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIndex]);
+
   const value: ProjectContextType = {
     project,
     currentIndex,
@@ -318,6 +417,7 @@ export function ProjectProvider({ initialProject, children }: ProjectProviderPro
     tagPeople,
     goToNext,
     goToPrevious,
+    goToIndex,
     flushSave,
   };
 
